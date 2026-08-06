@@ -4,6 +4,7 @@ from scipy.stats import norm
 
 from src.pricing import black_scholes_call_price
 from src.monte_carlo import mc_european_call_em
+from src.importance_sampling import is_fixed_rtilde
 
 
 np.random.seed(42) # for reproducibility
@@ -145,5 +146,85 @@ for N, est, std in cmc_results:
     )
 
 # --- European call by importance sampling with modified drift ---
-# We choose the IS drift that centers log-price at log(K)
-r_tilde = np.log(K/S0) / T + 0.5 * sigma**2 
+
+# We choose the IS drift such that log-price is centered at log(K)
+r_tilde = np.log(K/S0) / T + 0.5 * sigma**2
+print(f"Using r_tilde = {r_tilde:.4f} for importance sampling. \n")
+
+is_results_fixed = []
+for N in N_list:
+    est, std = is_fixed_rtilde(N, S0, K, r, r_tilde, sigma, T)
+    is_results_fixed.append((N, est, std))
+
+print("\n95% Confidence Intervals for Fixed Importance Sampling estimates:\n")
+
+for N, est, std in is_results_fixed:
+    se = std / np.sqrt(N)
+    ci_low = est - z975 * se
+    ci_high = est + z975 * se
+    ci_length = ci_high - ci_low
+
+    print(
+        f"N = {N:>7d} | "
+        f"Estimate = {est:.8f} | "
+        f"95% CI = [{ci_low:.8f}, {ci_high:.8f}] | "
+        f"CI length = {ci_length:.8e} | "
+        f"Std = {std:.8f}"
+    )
+
+print("\nAbsolute errors from Black-Scholes price:")
+for res in is_results_fixed:
+    print("\t For N = " + str(res[0]) + ": " + str(abs(res[1] - bs_price)))
+
+# --- Quantification of Variance Reduction 
+# --- Crude Monte Carlo vs Importance Sampling
+VR_cmc_vs_is_fixed = []
+for (N_cmc, _, std_cmc), (N_is, _, std_is) in zip(cmc_results, is_results_fixed):
+    print(std_cmc, std_is)
+    vr = (std_cmc ** 2) / (std_is ** 2)
+    VR_cmc_vs_is_fixed.append((N_cmc, vr))
+
+print(VR_cmc_vs_is_fixed)
+
+# --- Plot: IS estimates with 95% CI + Analytical Black-Scholes line
+
+# Extract arrays from is_results_fixed = [(N, est, std_weighted_payoff), ...]
+N_is = np.array([res[0] for res in is_results_fixed], dtype=float)
+est_is = np.array([res[1] for res in is_results_fixed], dtype=float)
+std_is_payoff = np.array([res[2] for res in is_results_fixed], dtype=float)
+
+# Standard error of the IS estimator
+se_is = std_is_payoff / np.sqrt(N_is)
+
+# 95% asymptotic CI half-width
+yerr_is = z975 * se_is
+
+plt.figure(figsize=(10, 5))
+
+# Analytical BS reference
+plt.axhline(bs_price, color='red', linestyle='--', linewidth=2, label='Analytical Black-Scholes')
+
+# IS estimate with CI error bars
+plt.errorbar(
+    N_is, est_is,
+    yerr=yerr_is,
+    fmt='o-',
+    markersize=6,
+    linewidth=2,
+    capsize=6,
+    capthick=1.5,
+    elinewidth=1.5,
+    label='IS estimate'
+)
+
+plt.xscale('log')
+plt.xlabel('Number of samples (N)')
+plt.ylabel('Call Price Estimate')
+plt.title('European Call via Importance Sampling')
+
+plt.grid(True, which='both', linestyle=':', linewidth=1)
+plt.legend(loc='upper right')
+plt.tight_layout()
+plt.show()
+
+# --- Adaptive Importance Sampling with variance minimization

@@ -5,7 +5,7 @@ from scipy.stats import norm
 from src.models import log_price_params
 from src.payoffs import european_call_payoff
 
-def is_fixed_rtilde(N, S0, r, r_tilde, sigma, T):
+def is_fixed_rtilde(N, S0, K, r, r_tilde, sigma, T):
     """
     Importance sampling estimator for the European call by changing the drift
     from r to r_tilde. Implementation follows Example 6.4 of lecture notes to
@@ -22,7 +22,7 @@ def is_fixed_rtilde(N, S0, r, r_tilde, sigma, T):
     S_T_tilde = S0 * np.exp(X_tilde)
 
     # Payoffs under original payoff function
-    payoffs = european_call_payoff(S_T_tilde)
+    payoffs = european_call_payoff(S_T_tilde, K, r, T)
 
     # Likelihood ratio w(x) = f_r(x) / f_rtilde(x)
     std = np.sqrt(var)
@@ -33,4 +33,4 @@ def is_fixed_rtilde(N, S0, r, r_tilde, sigma, T):
     weighted_payoffs = payoffs * w
     est = np.mean(weighted_payoffs)
     est_std = np.std(weighted_payoffs, ddof=1)
-    return est, std
+    return est, est_std
