@@ -8,7 +8,7 @@ from src.monte_carlo import mc_european_call_em
 
 np.random.seed(42) # for reproducibility
 
-# Experiment parameters (adapted from EPFL Stochastic Simulations project)
+# --- Experiment parameters (adapted from EPFL Stochastic Simulation project) ---
 r = 0.05
 sigma = 0.51
 T = 0.2
@@ -144,3 +144,6 @@ for N, est, std in cmc_results:
         f"Std = {std:.8f}"
     )
 
+# --- European call by importance sampling with modified drift ---
+# We choose the IS drift that centers log-price at log(K)
+r_tilde = np.log(K/S0) / T + 0.5 * sigma**2 
