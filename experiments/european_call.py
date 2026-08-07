@@ -4,7 +4,8 @@ from scipy.stats import norm
 
 from src.pricing import black_scholes_call_price
 from src.monte_carlo import mc_european_call_em
-from src.importance_sampling import is_fixed_rtilde
+from src.importance_sampling import is_fixed_rtilde, adaptive_is_rtilde
+from src.models import log_price_params
 
 
 np.random.seed(42) # for reproducibility
@@ -227,4 +228,90 @@ plt.legend(loc='upper right')
 plt.tight_layout()
 plt.show()
 
-# --- Adaptive Importance Sampling with variance minimization
+# --- Adaptive Importance Sampling with variance minimization ---
+# Implementation of the adaptive importance sampling estimator as in Algorithm 6.4
+# in the lecture notes to MATH-414.
+adaptive_result = adaptive_is_rtilde(
+    S0=S0, K=K, r=r, sigma=sigma, T=T,
+    tol=5e-2, alpha=0.05,
+    N_bar=500, gamma=2.0,
+    r_min=0.05, r_max=5.0, n_grid=100,
+    n_refine=501, refine_half_width=0.25,
+    max_iter=20,
+    random_seed=123
+)
+
+print("\nFinal adaptive results:")
+print("  r_tilde_final =", adaptive_result["r_tilde_final"])
+print("  N_final       =", adaptive_result["N_final"])
+print("  Z_hat         =", adaptive_result["Z_hat"])
+print("  sigma_hat     =", adaptive_result["sigma_hat"])
+
+# --- Sanity check plot: J(theta) around the final minimizer ---
+
+X = adaptive_result["last_X"]
+payoffs = adaptive_result["last_payoffs"]
+f_r_vals = adaptive_result["last_f_r_vals"]
+f_rt_vals_current = adaptive_result["last_f_rt_vals"]
+
+if X is None:
+    print("\nNo sample stored for J(theta) sanity plot (algorithm may have stopped before sampling).")
+else:
+    r_tilde_final = adaptive_result["r_tilde_final"]
+    r_min = adaptive_result["r_min"]
+    r_max = adaptive_result["r_max"]
+    hw = adaptive_result["refine_half_width"]
+    n_refine = adaptive_result["n_refine"]
+    var_X = adaptive_result["var_X"]
+    std_X = np.sqrt(var_X)
+    eps_denom = adaptive_result["eps_denom"]
+
+    lo = max(r_min, r_tilde_final - hw)
+    hi = min(r_max, r_tilde_final + hw)
+    r_grid_plot = np.linspace(lo, hi, n_refine)
+
+    f_r_sq = f_r_vals ** 2
+    J_plot = np.empty_like(r_grid_plot, dtype=float)
+
+
+    for j, r_candidate in enumerate(r_grid_plot):
+        mu_cand, _ = log_price_params(r_candidate, sigma, T)
+        f_cand = norm.pdf(X, loc=mu_cand, scale=std_X)
+        denom = (f_cand * f_rt_vals_current) + eps_denom
+        J_plot[j] = np.mean((payoffs ** 2) * f_r_sq / denom)
+
+    plt.figure(figsize=(9, 4.8))
+    plt.plot(r_grid_plot, J_plot, linewidth=2)
+    plt.axvline(r_tilde_final, linestyle='--', linewidth=2, label=r"final $\tilde r$")
+    plt.xlabel(r"$\theta$ (candidate $\tilde r$)")
+    plt.ylabel(r"$\hat J(\theta)$")
+    plt.title(r"Sanity check: objective $\hat J(\theta)$ around the minimizer")
+    plt.grid(True, which='both', linestyle=':', linewidth=1)
+    plt.legend()
+    plt.tight_layout()
+    plt.show()
+
+# --- Quantification of Variance Reduction - Crude Monte Carlo vs Adaptive Importance Sampling ---
+print("Absolute errors from Black-Scholes price:")
+print("\t For N = " + str(adaptive_result['N_final']))
+print("Final standard deviation of weighted payoff: " + str(adaptive_result['sigma_hat']))
+print("Variance Reduction: " + str((std_payoff_arr[-1] ** 2) / adaptive_result['sigma_hat'] ** 2))
+
+## Comments on adaptive importance sampling
+# Performance for tolerance (tol) = 1e-3:
+# - Execution time: 6m1.0s
+# - Iterations    : 18
+# - r_tilde_final : 2.03
+# - N_final       : 32768000
+# - Z_hat         : 3.2182141337687673
+# - sigma_hat     : 2.2164958762434037
+# - Var reduction : 17.585903014316713
+
+# Performance for tolerance (tol) = 5e-2:
+# - Execution time: 0.1s
+# - Iterations    : 6
+# - r_tilde_final : 2.033
+# - N_final       : 8000
+# - Z_hat         : 3.1866129699491994
+# - sigma_hat     : 2.2176522615636065
+# - Var reduction : 17.56756760767114

@@ -34,3 +34,161 @@ def is_fixed_rtilde(N, S0, K, r, r_tilde, sigma, T):
     est = np.mean(weighted_payoffs)
     est_std = np.std(weighted_payoffs, ddof=1)
     return est, est_std
+
+def adaptive_is_rtilde(
+        S0, K, r, sigma, T,
+        tol=1e-3, alpha=0.05,
+        N_bar=1000, gamma=2.0,
+        r_min=0.05, r_max=20.0,
+        n_grid=100,                 # coarse grid size
+        n_refine=501,               # refined grid size around coarse minimizer
+        refine_half_width=0.25,     # refine interval: [best-hw, best+hw]
+        max_iter=20,
+        random_seed=123,
+        eps_denom=1e-300
+):
+    """
+    Adaptive IS for European call with variance-minimization objective J(theta)
+    following Algorithm 6.3/6.4 from the lecture notes of MATH-414.
+
+    The minimization is performed via a two-stage grid search, first minimizing
+    the empirical J(theta) over a course grid, then refining around the best
+    candidate.
+    """
+    if random_seed is not None:
+        np.random.seed(random_seed)
+
+    c = norm.ppf(1 - alpha / 2.0)
+
+    # Precompute mean and variance of X = log(S_T/S0) under the true model r
+    mu_r, var_X = log_price_params(r, sigma, T)
+
+    ## Step 1 of Algorithm 6.4
+    # Initialize
+    N = int(N_bar / gamma)
+    r_tilde = r
+    sigma_hat = np.inf
+
+    # Histories
+    r_tilde_history = []
+    N_history = []
+    Z_hat_history = []
+    sigma_hat_history = []
+
+    # Keep last sample to allow an external J(theta) sanity-check plot
+    last_X = None
+    last_payoffs = None
+    last_f_r_vals = None
+    last_f_rt_vals = None # f(x; current r_tilde) at time of sampling
+
+    for it in range(max_iter):
+        halfwidth = c * sigma_hat / np.sqrt(N)
+        print(f"Iteration {it+1}: N={N}, r_tilde={r_tilde:.4f}, sigma_hat={sigma_hat:.6f}")
+        print(f"  Current tolerance check (half-width vs tol): {halfwidth:.6f} <= {tol:.6f}\n")
+
+        ## Step 2 of Algorithm 6.4
+        if halfwidth <= tol:
+            print("** Desired tolerance achieved! **")
+            break
+
+        ## Step 3 of Algorithm 6.4
+        # Update r_tilde and N (r_tilde update later in order not to print previous value)
+        N = int(gamma * N)
+
+        ## Step 4 of Algorithm 6.4
+        # Sample under current proposal f(·; r_tilde)
+        mu_rt, _ = log_price_params(r_tilde, sigma, T)
+        X = np.random.randn(N) * np.sqrt(var_X) + mu_rt
+        S_T = S0 * np.exp(X)
+
+        # IS weights w = f_r / f_rtilde
+        std_X = np.sqrt(var_X)
+        f_r_vals = norm.pdf(X, loc=mu_r, scale=std_X)
+        f_rt_vals = norm.pdf(X, loc=mu_rt, scale=std_X)
+        w = f_r_vals / (f_rt_vals + eps_denom)
+
+        payoffs = european_call_payoff(S_T, K, r, T)
+        weighted_payoffs = payoffs * w
+
+        ## Step 5 of Algorithm 6.4
+        # MC IS estimator and variance under current r_tilde
+        Z_hat = np.mean(weighted_payoffs)
+        sigma_hat = np.std(weighted_payoffs, ddof=1)
+
+        # store last sample info (for external plotting later)
+        last_X = X
+        last_payoffs = payoffs
+        last_f_r_vals = f_r_vals
+        last_f_rt_vals = f_rt_vals
+
+        ## Step 6 of Algorithm 6.4
+        # Approximate J(theta) and choose new r_tilde minimizing J_hat(theta) on a grid
+
+        # Build coarse grid and compute J_coarse explicitly
+        r_grid_coarse = np.linspace(r_min, r_max, n_grid)
+        J_coarse = np.empty_like(r_grid_coarse, dtype=float)
+
+        f_r_sq = f_r_vals ** 2 # common factor
+
+        for j, r_candidate in enumerate(r_grid_coarse):
+            mu_cand, _ = log_price_params(r_candidate, sigma, T)
+            f_cand = norm.pdf(X, loc=mu_cand, scale=std_X)
+            denom = (f_cand * f_rt_vals) + eps_denom
+            J_coarse[j] = np.mean((payoffs ** 2) * f_r_sq / denom)
+
+        # Print top-5 coarse candidates
+        idx5 = np.argsort(J_coarse)[:5]
+        print("  Top-5 coarse candidates (r, J_hat):")
+        for k in idx5:
+            print(f"    r={r_grid_coarse[k]:.6f}, J={J_coarse[k]:.6e}")
+        best_coarse = float(r_grid_coarse[np.argmin(J_coarse)])
+        print(f"  Coarse minimizer: r ~{best_coarse:.6f}\n")
+
+        # Refine grid around coarse minimizer
+        lo = max(r_min, best_coarse - refine_half_width)
+        hi = min(r_max, best_coarse + refine_half_width)
+        r_grid_fine = np.linspace(lo, hi, n_refine)
+        J_fine = np.empty_like(r_grid_fine, dtype=float)
+
+        for j, r_candidate in enumerate(r_grid_fine):
+            mu_cand, _ = log_price_params(r_candidate, sigma, T)
+            f_cand = norm.pdf(X, loc=mu_cand, scale=std_X)
+            denom = (f_cand * f_rt_vals) + eps_denom
+            J_fine[j] = np.mean((payoffs**2) * f_r_sq / denom)
+
+        best_fine = float(r_grid_fine[np.argmin(J_fine)])
+        print(f"  Refined minimizer in [{lo:.4f}, {hi:.4f}]: r_tilde_new = {best_fine:.6f}\n")
+
+        # Update r_tilde
+        r_tilde = best_fine
+
+        # Store UPDATED value
+        r_tilde_history.append(r_tilde)
+        N_history.append(N)
+        Z_hat_history.append(Z_hat)
+        sigma_hat_history.append(sigma_hat)
+
+    return {
+        "r_tilde_history": r_tilde_history,
+        "N_history": N_history,
+        "Z_hat_history": Z_hat_history,
+        "sigma_hat_history": sigma_hat_history,
+        "r_tilde_final": r_tilde,
+        "N_final": N,
+        "Z_hat": Z_hat_history[-1] if Z_hat_history else None,
+        "sigma_hat": sigma_hat_history[-1] if sigma_hat_history else None,
+        # extra info for external J(theta) sanity check plot
+        "last_X": last_X,
+        "last_payoffs": last_payoffs,
+        "last_f_r_vals": last_f_r_vals,
+        "last_f_rt_vals": last_f_rt_vals,
+        "var_X": var_X,
+        "mu_r": mu_r,
+        "r_min": r_min,
+        "r_max": r_max,
+        "refine_half_width": refine_half_width,
+        "n_refine": n_refine,
+        "eps_denom": eps_denom,
+        "sigma": sigma,
+        "T": T,
+    }
