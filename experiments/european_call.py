@@ -7,17 +7,18 @@ from src.monte_carlo import mc_european_call_em
 from src.importance_sampling import is_fixed_rtilde, adaptive_is_rtilde
 from src.models import log_price_params
 
+from experiments.config import EUROPEAN_CALL, N_LIST
+
 
 np.random.seed(42) # for reproducibility
 
 # --- Experiment parameters (adapted from EPFL Stochastic Simulation project) ---
-r = 0.05
-sigma = 0.51
-T = 0.2
-S0 = 100.0
-K = 120.0
-
-M_em = 100 # number of EM (Euler-Maruyama steps)
+r = EUROPEAN_CALL["r"]
+sigma = EUROPEAN_CALL["sigma"]
+T = EUROPEAN_CALL["T"]
+S0 = EUROPEAN_CALL["S0"]
+K = EUROPEAN_CALL["K"]
+M_em = EUROPEAN_CALL["M"] # number of EM (Euler-Maruyama steps)
 # dt_em = T / M_em
 
 # --- Exact bs_call_price for reference ---
@@ -297,21 +298,3 @@ print("\t For N = " + str(adaptive_result['N_final']))
 print("Final standard deviation of weighted payoff: " + str(adaptive_result['sigma_hat']))
 print("Variance Reduction: " + str((std_payoff_arr[-1] ** 2) / adaptive_result['sigma_hat'] ** 2))
 
-## Comments on adaptive importance sampling
-# Performance for tolerance (tol) = 1e-3:
-# - Execution time: 6m1.0s
-# - Iterations    : 18
-# - r_tilde_final : 2.03
-# - N_final       : 32768000
-# - Z_hat         : 3.2182141337687673
-# - sigma_hat     : 2.2164958762434037
-# - Var reduction : 17.585903014316713
-
-# Performance for tolerance (tol) = 5e-2:
-# - Execution time: 0.1s
-# - Iterations    : 6
-# - r_tilde_final : 2.033
-# - N_final       : 8000
-# - Z_hat         : 3.1866129699491994
-# - sigma_hat     : 2.2176522615636065
-# - Var reduction : 17.56756760767114
