@@ -1,7 +1,7 @@
 import time
 import numpy as np
 
-from experiments.config import EUROPEAN_CALL
+from experiments.config import EUROPEAN_CALL, OPTIMAL_CONTROL, PDE_REFINEMENT
 from src.pricing import black_scholes_call_price
 from src.pde import solve_european_call_kbe
 from src.optimal_control import (
@@ -10,9 +10,11 @@ from src.optimal_control import (
     simulate_controlled_european_call
 )
 from src.statistics import variance_reduction
+from src.plotting import plot_vrf_vs_pdf_refinement
 
 def run_european_call(std_reference=None):
     cfg=EUROPEAN_CALL
+    optimal_control_cfg=OPTIMAL_CONTROL
 
     # 1. solve KBE
     # 2. compute/interpolate zeta*
@@ -28,9 +30,9 @@ def run_european_call(std_reference=None):
     sigma = cfg["sigma"]
     T = cfg["T"]
 
-    M_pde = 30
-    P_pde = 50
-    N_sim = 1_000_000
+    M_pde = optimal_control_cfg["M_pde"]
+    P_pde = optimal_control_cfg["P_pde"]
+    N_sim = optimal_control_cfg["N_sim"]
 
     bs_price = black_scholes_call_price(
         S0, K, r, sigma, T
@@ -58,7 +60,7 @@ def run_european_call(std_reference=None):
         zeta
     )
 
-    Z_is, Var_is, error_is = simulate_controlled_european_call(
+    est, std = simulate_controlled_european_call(
         N = N_sim,
         S0=S0,
         K=K,
@@ -74,23 +76,60 @@ def run_european_call(std_reference=None):
     # print(f"S1: {S1:.2f}, S2: {S2:.2f}")
     print("-" * 30)
     print(f"Closed-form BS Price:  {bs_price:.6f}")
-    print(f"IS Estimate (Z_dt):    {Z_is:.6f}")
-    print(f"Statistical Error:     {error_is:.6f}")
-    print(f"IS Variance:           {Var_is:.4e}")
-    print(f"Relative Bias (%):     {abs(Z_is - bs_price)/bs_price * 100:.4f}%")
-    print(f"Absolute Bias (%):     {abs(Z_is - bs_price) * 100:.4f}%")
-    print("-" * 30)
-
+    print(f"IS Estimate (Z_dt):    {est:.6f}")
+    print(f"IS std:           {std:.4e}")
+    
     if std_reference is not None:
-        std_is = np.sqrt(Var_is)
         vrf = variance_reduction(
             std_reference,
-            std_is
+            std
         )
         print(f"\nVariance reduction vs CMC: {vrf:.2f}")
 
 
-    return {}
+    VRF_pde_refinement_analysis = PDE_REFINEMENT["VRF_vs_discretization_analysis"]
+
+    full_results = {}
+    vrf_results = {}
+
+    if std_reference is not None and VRF_pde_refinement_analysis:
+        print("\n--- VRF vs PDE discretization couples ---")
+
+        N_test = PDE_REFINEMENT["N_test"]
+        P_list = PDE_REFINEMENT["P_list"]
+        M_list = PDE_REFINEMENT["M_list"]
+
+        for m_val in M_list:
+            for p_val in P_list:
+                start_time = time.time()
+                s_grid, t_grid, v = solve_european_call_kbe(S0, K, T, r, sigma, m_val, p_val)
+                zeta_star = compute_optimal_control(v, s_grid, sigma)
+                ctrl_func = get_control_interpolator(t_grid, s_grid, zeta_star)
+                est, std = simulate_controlled_european_call(N_test, S0, K, T, r, sigma, m_val, ctrl_func)
+                
+                end_time = time.time()
+                elapsed = end_time - start_time
+
+                vrf = variance_reduction(
+                    std_reference,
+                    std
+                )
+                full_results[(p_val, m_val)] = {
+                    'price': est,
+                    'std': std,
+                    'vrf': vrf,
+                    'time': elapsed
+                }
+                vrf_results[(p_val, m_val)] = vrf
+                
+                print(f"(P={p_val}, M={m_val}) | Price: {est:.8f} | std: {std:.8f} | VRF: {vrf_results[(p_val, m_val)]:.2f} | Time: {elapsed:.2f}s")
+
+        plot_vrf_vs_pdf_refinement(M_list, P_list, full_results)
+
+    return {
+        "full_results": full_results,
+        "vrf_results": vrf_results
+    }
 
 if __name__ == "__main__":
     run_european_call()

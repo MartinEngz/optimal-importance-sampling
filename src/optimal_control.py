@@ -82,8 +82,8 @@ def simulate_controlled_european_call(
     payoffs = np.maximum(S_curr - K, 0) * np.exp(-r * T)
     weighted_payoffs = payoffs * np.exp(log_L)
     
-    Z_is = np.mean(weighted_payoffs)
-    Var_is = np.var(weighted_payoffs, ddof=1)
-    error_is = 1.96 * np.sqrt(Var_is / N)
+    est = np.mean(weighted_payoffs)
+    std = np.std(weighted_payoffs, ddof=1)
     
-    return Z_is, Var_is, error_is
+    
+    return est, std

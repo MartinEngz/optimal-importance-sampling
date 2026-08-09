@@ -149,3 +149,28 @@ def plot_optimal_control(t_grid, s_grid, zeta_star, t_max=0.18, s_range=None):
 
     fig.show()
 
+def plot_vrf_vs_pdf_refinement(M_list, P_list, full_results):
+    plt.figure(figsize=(14, 6))
+
+    plt.subplot(1, 2, 1)
+    for m_val in M_list:
+        y_values = [full_results[(p_val, m_val)]['vrf'] for p_val in P_list]
+        plt.plot(P_list, y_values, '-o', label=f'M={m_val}')
+    plt.xlabel('Space Discretization (P)')
+    plt.ylabel('Variance Reduction Factor (VRF)')
+    plt.title('Impact of P on VRF')
+    plt.legend()
+    plt.grid(True, which='both', linestyle=':', linewidth=0.8)
+
+    plt.subplot(1, 2, 2)
+    for p_val in P_list:
+        y_values = [full_results[(p_val, m_val)]['vrf'] for m_val in M_list]
+        plt.plot(M_list, y_values, '-o', label=f'P={p_val}')
+    plt.xlabel('Time Discretization (M)')
+    plt.ylabel('Variance Reduction Factor (VRF)')
+    plt.title('Impact of M on VRF')
+    plt.legend()
+    plt.grid(True, which='both', linestyle=':', linewidth=0.8)
+
+    plt.tight_layout()
+    plt.show()

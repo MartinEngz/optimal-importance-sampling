@@ -16,13 +16,13 @@ def main():
     adaptive_is = run_adaptive_is(std_reference=std_reference)
 
     print("\n=== PDE_BASED OPTIMAL CONTROL ===")
-    optimal = run_optimal_control(std_reference=std_reference)
+    optimal_control = run_optimal_control(std_reference=std_reference)
 
     return {
         "crude_mc": crude,
         "fixed_is": fixed_is,
         "adaptive_is": adaptive_is,
-        "optimal_control": optimal
+        "optimal_control": optimal_control
     }
 
 if __name__ == "__main__":

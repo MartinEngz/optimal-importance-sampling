@@ -31,4 +31,17 @@ ADAPTIVE_IS = {
     "random_seed":123
 }
 
-# Add BARRIER_CALL and PDE grids here later
+OPTIMAL_CONTROL = {
+    "M_pde": 30,
+    "P_pde": 50,
+    "N_sim": 1_000_000
+}
+
+PDE_REFINEMENT = {
+    "VRF_vs_discretization_analysis": False,
+    "N_test": 100_000,
+    "P_list": [20, 60, 100, 300, 500],
+    "M_list": [10, 50, 100, 500, 2000, 5000, 10_000]
+}
+
+# Add BARRIER_CALL here later
