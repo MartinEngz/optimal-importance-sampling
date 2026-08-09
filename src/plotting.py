@@ -149,7 +149,7 @@ def plot_optimal_control(t_grid, s_grid, zeta_star, t_max=0.18, s_range=None):
 
     fig.show()
 
-def plot_vrf_vs_pdf_refinement(M_list, P_list, full_results):
+def plot_vrf_vs_pde_refinement(M_list, P_list, full_results):
     plt.figure(figsize=(14, 6))
 
     plt.subplot(1, 2, 1)
