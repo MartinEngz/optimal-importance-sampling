@@ -20,6 +20,7 @@ def run_european_call(std_reference=None):
         sigma=cfg["sigma"],
         T=cfg["T"]
     )
+    
 
     # We choose the IS drift such that log-price is centered at log(K)
     r_tilde = (

@@ -1,5 +1,6 @@
 import numpy as np
 import matplotlib.pyplot as plt
+import plotly.graph_objects as go
 
 from src.statistics import standard_error, confidence_interval
 
@@ -96,3 +97,55 @@ def plot_estimates_with_ci(
     plt.legend()
     plt.tight_layout()
     plt.show()
+
+
+def plot_optimal_control(t_grid, s_grid, zeta_star, t_max=0.18, s_range=None):
+    """
+    Plots the optimal control zeta* using Plotly.
+    
+    Parameters:
+    t_grid: 1D array of time points from 0 to T.
+    s_grid: 1D array of asset price points from S_min to S_max.
+    zeta_star: 2D array of control values (M+1, P+1).
+    t_max: Upper bound for time axis (default 0.18).
+    s_range: Tuple (S1, S2) for price axis filtering.
+    """
+
+    t_indices = np.where(t_grid <= t_max)[0]
+    
+    if s_range is not None:
+        s1, s2 = s_range
+        s_indices = np.where((s_grid >= s1) & (s_grid <= s2))[0]
+    else:
+        s_indices = np.arange(len(s_grid))
+
+    t_plot = t_grid[t_indices]
+    s_plot = s_grid[s_indices]
+    
+    # Z_plot: Rows correspond to Asset Price (y), Columns to Time (x)
+    z_plot = zeta_star[np.ix_(t_indices, s_indices)].T
+
+    fig = go.Figure(data=[go.Surface(
+        z=z_plot, 
+        x=t_plot, 
+        y=s_plot,
+        colorscale='Viridis',
+        colorbar_title='ζ*'
+    )])
+
+    fig.update_layout(
+        title=f'Optimal Control ζ*(t, s) for t ∈ [0, {t_max}]',
+        scene=dict(
+            xaxis_title='Time (t)',
+            yaxis_title='Asset Price (s)',
+            zaxis_title='Control ζ*',
+            aspectmode='manual',
+            aspectratio=dict(x=1, y=1, z=0.7)
+        ),
+        width=900,
+        height=700,
+        margin=dict(l=65, r=50, b=65, t=90)
+    )
+
+    fig.show()
+
