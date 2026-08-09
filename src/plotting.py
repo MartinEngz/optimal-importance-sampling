@@ -11,7 +11,9 @@ def plot_standard_error_convergence(results, title):
     se = standard_error(std, N)
 
     # Reference slope ~ 1/sqrt(N)
-    ref_se = se[0] * np.sqrt(N[0]) / np.sqrt(N)
+    # Anchor N^{-1/2} reference at first non-zero empirical SE
+    positive_idx = np.flatnonzero(se > 0)[0]
+    ref_se = se[positive_idx] * np.sqrt(N[positive_idx]) / np.sqrt(N)
 
     plt.figure(figsize=(8.5, 4.8))
 
@@ -80,6 +82,7 @@ def plot_estimates_with_ci(
     if reference is not None:
         plt.axhline(
             reference,
+            color='red',
             linestyle="--",
             linewidth=1.5,
             label=reference_label
@@ -92,3 +95,4 @@ def plot_estimates_with_ci(
     plt.grid(True, which="both", linestyle=":", linewidth=0.8)
     plt.legend()
     plt.tight_layout()
+    plt.show()
