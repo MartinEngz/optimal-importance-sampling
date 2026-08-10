@@ -44,4 +44,26 @@ PDE_REFINEMENT = {
     "M_list": [10, 50, 100, 500, 2000, 5000, 10_000]
 }
 
-# Add BARRIER_CALL here later
+BARRIER_CALL = {
+    "S0": 100.0,
+    "K": 150.0,
+    "r": 0.10,
+    "sigma": 0.30,
+    "T": 0.20,
+    "U": 200.0,
+    "M": 1000,
+}
+
+BARRIER_OPTIMAL_CONTROL = {
+    "P_pde": 200,
+    "M_pde": 200,
+    "epsilon_bc": 0.1,
+    "N_paths_plot": 100,
+}
+
+BARRIER_FINE = {
+    "U": 170.0,
+    "P_pde": 3000,
+    "M_pde": 1500,
+}
+
