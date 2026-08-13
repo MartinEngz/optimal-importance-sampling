@@ -81,5 +81,11 @@ def run_european_call(std_reference=None):
         "variance_reduction": vrf
     }
 
+def run_barrier_call(std_reference=None):
+    pass
+
+    # std_err = standard_error(std, N)
+
+
 if __name__ == "__main__":
     run_european_call()

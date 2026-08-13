@@ -5,6 +5,7 @@ from scipy.stats import norm
 from src.models import log_price_params
 from src.payoffs import european_call_payoff, up_and_out_call_payoff
 from src.models import simulate_gbm_em_paths
+from src.statistics import standard_error
 
 def is_fixed_rtilde(N, S0, K, r, r_tilde, sigma, T):
     """
@@ -44,10 +45,20 @@ def is_fixed_rtilde_barrier(N, S0, K, U, r, r_tilde, sigma, T, M, random_seed=No
     if random_seed is not None:
         np.random.seed(random_seed)
 
-    S_paths = simulate_gbm_em_paths(N, S0, r, sigma, T, M)
+    S_paths, W_T = simulate_gbm_em_paths(N, S0, r, sigma, T, M)
     payoffs = up_and_out_call_payoff(S_paths, K, r, T, U)
 
-    
+    theta = (r - r_tilde) / sigma
+    weights = np.exp(-theta * W_T - 0.5 * (theta**2) * T)
+
+    weighted_payoffs = payoffs * weights
+    estimate = np.mean(weighted_payoffs)
+    std = np.std(weighted_payoffs, ddof=1)
+
+    return est, std, S_paths
+
+
+
 
 
 def adaptive_is_rtilde(

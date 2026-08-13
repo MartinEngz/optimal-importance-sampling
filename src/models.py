@@ -8,6 +8,7 @@ def simulate_gbm_em_paths(N, S0, r, sigma, T, M):
 
     Returns:
         S_paths: array of shape (N, M+1) with full paths.
+        W_T: array of shape(N, 1) with final W value.
     """
     dt = T / M
     sqrt_dt = np.sqrt(dt)
@@ -15,12 +16,14 @@ def simulate_gbm_em_paths(N, S0, r, sigma, T, M):
     S_paths = np.empty((N, M+1))
     S_paths[:, 0] = S0
 
+    W_T = np.zeros(N)
     for m in range(M):
         Z = np.random.randn(N)
         dW = sqrt_dt * Z
         S = S_paths[:, m]
         S_paths[:, m+1] = S + r * S * dt + sigma * S * dW
-    return S_paths
+        W_T += dW
+    return S_paths, W_T
 
 def log_price_params(r_param, sigma, T):
     """
