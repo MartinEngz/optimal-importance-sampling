@@ -1,14 +1,15 @@
 import numpy as np
 
-from experiments.config import EUROPEAN_CALL, N_LIST
-from src.importance_sampling import is_fixed_rtilde
+from experiments.config import EUROPEAN_CALL, N_LIST, BARRIER_CALL
+from src.importance_sampling import is_fixed_rtilde, is_fixed_rtilde_barrier
 from src.pricing import black_scholes_call_price
 from src.statistics import (
     confidence_interval,
     variance_reduction,
-    absolute_error
+    absolute_error,
+    standard_error
 )
-from src.plotting import plot_estimates_with_ci
+from src.plotting import plot_estimates_with_ci, plot_barrier_drift_tradeoff
 
 def run_european_call(std_reference=None):
     cfg=EUROPEAN_CALL
@@ -82,10 +83,67 @@ def run_european_call(std_reference=None):
     }
 
 def run_barrier_call(std_reference=None):
-    pass
+    cfg = BARRIER_CALL
+    N = N_LIST[-2] # 100_000
 
-    # std_err = standard_error(std, N)
+    r_values = [0.0, 0.5, 1.0, 1.5, 2.0, 2.5, 3.0, 4.0]
 
+    results_list = []
+
+    estimates = []
+    stds = []
+    strike_hits_list = []
+    barrier_hits_list = []
+
+    for r_tilde in r_values:
+        est, std, S_paths = is_fixed_rtilde_barrier(
+            N=N, 
+            S0=cfg["S0"], 
+            K=cfg["K"], 
+            U=cfg["U"], 
+            r=cfg["r"], 
+            r_tilde=r_tilde, 
+            sigma=cfg["sigma"], 
+            T=cfg["T"], 
+            M=cfg["M"]
+        )
+
+        strike_hits = np.sum(S_paths[:, -1] > cfg["K"])
+        barrier_hits = np.sum(np.max(S_paths, axis=1) > cfg["U"])
+
+        estimates.append(est)
+        stds.append(std)
+        strike_hits_list.append(strike_hits)
+        barrier_hits_list.append(barrier_hits)
+
+        results_list.append({
+            "r_tilde": r_tilde,
+            "estimate": est,
+            "std": std,
+            "strike_hits": strike_hits,
+            "barrier_hits": barrier_hits 
+        })
+
+        print(f"r_tilde: {r_tilde:.2f} | "
+              f"Strike Hits: {strike_hits} | "
+              f"Barrier Hits: {barrier_hits} | "
+              f"Est: {est:.6f} | "
+              f"Std: {std:.6f}"
+        )
+
+    plot_barrier_drift_tradeoff(
+        r_values=r_values,
+        estimates=estimates,
+        stds=stds,
+        strike_hits=strike_hits_list,
+        barrier_hits=barrier_hits_list,
+        N=N
+    )
+
+    return {
+        "results": results_list
+    }
 
 if __name__ == "__main__":
-    run_european_call()
+    # run_european_call()
+    run_barrier_call()

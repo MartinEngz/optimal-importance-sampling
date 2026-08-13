@@ -45,14 +45,14 @@ def is_fixed_rtilde_barrier(N, S0, K, U, r, r_tilde, sigma, T, M, random_seed=No
     if random_seed is not None:
         np.random.seed(random_seed)
 
-    S_paths, W_T = simulate_gbm_em_paths(N, S0, r, sigma, T, M)
+    S_paths, W_T = simulate_gbm_em_paths(N, S0, r_tilde, sigma, T, M)
     payoffs = up_and_out_call_payoff(S_paths, K, r, T, U)
 
     theta = (r - r_tilde) / sigma
     weights = np.exp(-theta * W_T - 0.5 * (theta**2) * T)
 
     weighted_payoffs = payoffs * weights
-    estimate = np.mean(weighted_payoffs)
+    est = np.mean(weighted_payoffs)
     std = np.std(weighted_payoffs, ddof=1)
 
     return est, std, S_paths

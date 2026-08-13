@@ -174,3 +174,69 @@ def plot_vrf_vs_pde_refinement(M_list, P_list, full_results):
 
     plt.tight_layout()
     plt.show()
+
+def plot_barrier_drift_tradeoff(
+    r_values,
+    estimates,
+    stds,
+    strike_hits,
+    barrier_hits,
+    N,
+):
+    r_labels = [f"{r:.1f}" for r in r_values]
+    x = np.arange(len(r_values))
+    width = 0.35
+
+    errors = [
+        1.96 * std / np.sqrt(N)
+        for std in stds
+    ]
+
+    fig, ax1 = plt.subplots(figsize=(10, 6))
+
+    ax1.bar(
+        x - width / 2,
+        strike_hits,
+        width,
+        label="Over strike",
+        alpha=0.7,
+    )
+
+    ax1.bar(
+        x + width / 2,
+        barrier_hits,
+        width,
+        label="Barrier hits",
+        alpha=0.7,
+    )
+
+    ax1.set_xlabel(r"Fixed drift $\tilde r$")
+    ax1.set_ylabel(f"Number of paths (N = {N:,})")
+    ax1.set_title(
+        "Fixed-Drift Importance Sampling for Up-and-Out Call"
+    )
+
+    ax1.set_xticks(x)
+    ax1.set_xticklabels(r_labels)
+    ax1.legend(loc="upper left")
+    ax1.grid(axis="y", linestyle=":", linewidth=0.8)
+
+    ax2 = ax1.twinx()
+
+    ax2.errorbar(
+        x,
+        estimates,
+        yerr=errors,
+        fmt="o-",
+        markersize=5,
+        linewidth=1.2,
+        capsize=4,
+        capthick=1.0,
+        elinewidth=1.0,
+        label="Price estimate (95% CI)",
+    )
+
+    ax2.set_ylabel("Estimated option price")
+
+    fig.tight_layout()
+    plt.show()
