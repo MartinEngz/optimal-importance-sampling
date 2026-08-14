@@ -51,7 +51,7 @@ The `src/` package contains reusable numerical methods, while `experiments/` def
 The first part considers a European call under geometric Brownian motion,
 
 $$
-dS_t = rS_t \; dt + \sigma S_t \; dW_t,
+dS_t = rS_t dt + \sigma S_t dW_t,
 $$
 
 with payoff
@@ -67,7 +67,7 @@ The Black-Scholes price is used as an analytical benchmark.
 The baseline estimator is
 
 $$
-\Hat{V_N} = \frac{1}{N} \sum_{i=1}^N e^{-rT}(S_T^{(i)}-K)^+.
+\hat{V}_N = \frac{1}{N} \sum_{i=1}^N e^{-rT}(S_T^{(i)}-K)^+.
 $$
 
 For an out-of-the-money option, many simulated paths produce zero payoff, making crude Monte Carlo inefficient at small sample sizes.
@@ -86,26 +86,13 @@ The fixed drift is then selected numerically by minimizing an empirical second-m
 
 The final vanilla method uses a state- and time-dependent control
 
-$$
-\zeta^*(t,s)
-=
-\sigma s
-\frac{\partial_s v(t,s)}{v(t,s)},
-$$
+$$\zeta^*(t,s) = \sigma s \frac{\partial_s v(t,s)}{v(t,s)}$$
 
 where $v(t,s)$ is obtained by solving the Kolmogorov backward equation numerically.
 
 Controlled paths are simulated under
 
-$$
-dS_t^\zeta
-=
-\left(rS_t^\zeta
-+
-\sigma S_t^\zeta \zeta_t\right)dt
-+
-\sigma S_t^\zeta dW_t,
-$$
+$$ dS_t^\zeta = \left(rS_t^\zeta + \sigma S_t^\zeta \zeta_t\right)dt + \sigma S_t^\zeta dW_t $$
 
 with the corresponding Girsanov likelihood ratio.
 
@@ -115,13 +102,7 @@ This demonstrates how a numerically computed control can strongly reduce varianc
 
 The second part extends the framework to the path-dependent payoff
 
-$$
-e^{-rT}(S_T-K)^+
-\mathbf{1}
-\left\{
-\max_{0\le t\le T} S_t \le U
-\right\}.
-$$
+$$ e^{-rT}(S_T-K)^+ \mathbf{1} \left\( \max_{0\le t\le T} S_t \le U \right). $$
 
 This creates a more difficult rare-event problem: simulated paths should finish above the strike while avoiding the upper barrier.
 
@@ -214,31 +195,17 @@ The planned extension is a **Nordic-power-inspired cap-style derivative** with p
 
 A baseline specification will use a mean-reverting log-price process,
 
-$$
-dX_t
-=
-\kappa\bigl(\mu(t)-X_t\bigr)dt
-+
-\sigma\,dW_t,
-\qquad
-S_t=e^{X_t},
-$$
+$$ dX_t = \kappa\bigl(\mu(t)-X_t\bigr)dt + \sigma dW_t \qquad S_t=e^{X_t} $$
 
 and a cap-style payoff of the form
 
-$$
-Y
-=
-\sum_i
-e^{-rt_i}
-(S_{t_i}-K)^+\Delta t.
-$$
+$$ Y = \sum_i e^{-rt_i} (S_{t_i}-K)^+\Delta t.$$
 
 The goal is to study whether importance sampling can materially reduce the computational cost of estimating high-price electricity exposures driven by rare market events.
 
 ## Origin
 
-This repository is based on a project completed in **EPFL MATH-414 Stochastic Simulation** and has been rewritten from the original notebook-style implementation into a modular Python codebase.
+This repository is based on a project completed in **EPFL MATH-414 Stochastic Simulation** and has been rewritten into a modular Python codebase.
 
 The rework emphasizes:
 
