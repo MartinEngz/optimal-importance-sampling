@@ -51,7 +51,7 @@ The `src/` package contains reusable numerical methods, while `experiments/` def
 The first part considers a European call under geometric Brownian motion,
 
 $$
-dS_t = rS_t\,dt + \sigma S_t\,dW_t,
+dS_t = rS_t \; dt + \sigma S_t \; dW_t,
 $$
 
 with payoff
@@ -67,11 +67,7 @@ The Black-Scholes price is used as an analytical benchmark.
 The baseline estimator is
 
 $$
-\hat V_N
-=
-\frac{1}{N}
-\sum_{i=1}^N
-e^{-rT}(S_T^{(i)}-K)^+.
+\Hat{V_N} = \frac{1}{N} \sum_{i=1}^N e^{-rT}(S_T^{(i)}-K)^+.
 $$
 
 For an out-of-the-money option, many simulated paths produce zero payoff, making crude Monte Carlo inefficient at small sample sizes.
