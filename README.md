@@ -50,15 +50,15 @@ The `src/` package contains reusable numerical methods, while `experiments/` def
 
 The first part considers a European call under geometric Brownian motion,
 
-\[
+$$
 dS_t = rS_t\,dt + \sigma S_t\,dW_t,
-\]
+$$
 
 with payoff
 
-\[
+$$
 e^{-rT}(S_T-K)^+.
-\]
+$$
 
 The Black-Scholes price is used as an analytical benchmark.
 
@@ -66,19 +66,19 @@ The Black-Scholes price is used as an analytical benchmark.
 
 The baseline estimator is
 
-\[
-\hat V*N
+$$
+\hat V_N
 =
 \frac{1}{N}
-\sum*{i=1}^N
+\sum_{i=1}^N
 e^{-rT}(S_T^{(i)}-K)^+.
-\]
+$$
 
 For an out-of-the-money option, many simulated paths produce zero payoff, making crude Monte Carlo inefficient at small sample sizes.
 
 ### Fixed-drift importance sampling
 
-A first importance-sampling scheme changes the simulated drift from \(r\) to a fixed \(\tilde r\). The likelihood ratio corrects for the change of measure so that the estimator remains unbiased.
+A first importance-sampling scheme changes the simulated drift from $r$ to a fixed $\tilde r$. The likelihood ratio corrects for the change of measure so that the estimator remains unbiased.
 
 This increases the frequency of payoff-relevant paths and reduces estimator variance.
 
@@ -90,25 +90,26 @@ The fixed drift is then selected numerically by minimizing an empirical second-m
 
 The final vanilla method uses a state- and time-dependent control
 
-\[
-\zeta^\*(t,s)
+$$
+\zeta^*(t,s)
 =
 \sigma s
 \frac{\partial_s v(t,s)}{v(t,s)},
-\]
+$$
 
-where \(v(t,s)\) is obtained by solving the Kolmogorov backward equation numerically.
+where $v(t,s)$ is obtained by solving the Kolmogorov backward equation numerically.
 
 Controlled paths are simulated under
 
-\[
+$$
 dS_t^\zeta
 =
 \left(rS_t^\zeta
-
-- \sigma S_t^\zeta \zeta_t\right)dt
-- \sigma S_t^\zeta dW_t,
-  \]
++
+\sigma S_t^\zeta \zeta_t\right)dt
++
+\sigma S_t^\zeta dW_t,
+$$
 
 with the corresponding Girsanov likelihood ratio.
 
@@ -118,13 +119,13 @@ This demonstrates how a numerically computed control can strongly reduce varianc
 
 The second part extends the framework to the path-dependent payoff
 
-\[
-e^{-rT}(S*T-K)^+
+$$
+e^{-rT}(S_T-K)^+
 \mathbf{1}
 \left\{
-\max*{0\le t\le T} S_t \le U
+\max_{0\le t\le T} S_t \le U
 \right\}.
-\]
+$$
 
 This creates a more difficult rare-event problem: simulated paths should finish above the strike while avoiding the upper barrier.
 
@@ -138,17 +139,17 @@ Increasing the drift makes terminal prices above the strike more common, but it 
 
 The barrier experiment therefore exposes a structural limitation of a single constant drift:
 
-\[
+$$
 \text{push toward } K
 \qquad \text{vs.} \qquad
 \text{avoid } U.
-\]
+$$
 
 A strike-versus-barrier diagnostic plot is used to visualize this trade-off.
 
 ### State-dependent optimal control
 
-The barrier Kolmogorov backward equation is solved on a domain with upper boundary \(S\_{\max}=U\). The same reusable control construction as in the European-call case is then applied.
+The barrier Kolmogorov backward equation is solved on a domain with upper boundary $S_{\max}=U$. The same reusable control construction as in the European-call case is then applied.
 
 The resulting optimal control is state dependent:
 
@@ -217,31 +218,31 @@ The planned extension is a **Nordic-power-inspired cap-style derivative** with p
 
 A baseline specification will use a mean-reverting log-price process,
 
-\[
+$$
 dX_t
 =
 \kappa\bigl(\mu(t)-X_t\bigr)dt
-
-- \sigma\,dW_t,
-  \qquad
-  S_t=e^{X_t},
-  \]
++
+\sigma\,dW_t,
+\qquad
+S_t=e^{X_t},
+$$
 
 and a cap-style payoff of the form
 
-\[
+$$
 Y
 =
-\sum*i
+\sum_i
 e^{-rt_i}
-(S*{t_i}-K)^+\Delta t.
-\]
+(S_{t_i}-K)^+\Delta t.
+$$
 
 The goal is to study whether importance sampling can materially reduce the computational cost of estimating high-price electricity exposures driven by rare market events.
 
 ## Origin
 
-This repository is based on a project completed in **EPFL MATH-414 Stochastic Simulation** and has been rewritten into a modular Python codebase.
+This repository is based on a project completed in **EPFL MATH-414 Stochastic Simulation** and has been rewritten from the original notebook-style implementation into a modular Python codebase.
 
 The rework emphasizes:
 
