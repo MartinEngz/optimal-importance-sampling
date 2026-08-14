@@ -88,9 +88,8 @@ The final vanilla method uses a state- and time-dependent control
 
 $$\zeta^*(t,s) = \sigma s \frac{\partial_s v(t,s)}{v(t,s)}$$
 
-where $v(t,s)$ is obtained by solving the Kolmogorov backward equation numerically.
-
-Controlled paths are simulated under
+where $v(t,s)$ is obtained by solving the Kolmogorov backward equation numerically. This method follows 
+section 2.2 of [1] and corresponds to an optimal change of measure by performing a mean-shift on the Brownian motion such that the control term $\zeta : [0, T] \times \mathbb{R} \to \mathbb{R}$ transforms the standard geometric Brownian motion into
 
 $$ dS_t^\zeta = \left(rS_t^\zeta + \sigma S_t^\zeta \zeta_t\right)dt + \sigma S_t^\zeta dW_t $$
 
@@ -214,6 +213,12 @@ The rework emphasizes:
 - more efficient path handling;
 - cleaner diagnostics;
 - a direct path toward an energy-market application.
+
+## References
+
+1. Nadhir Ben Rached, Abdul-Lateef Haji-Ali, Shyam Mohan Subbiah Pillai, and Raúl Tempone,  
+   *Double-loop importance sampling for McKean–Vlasov stochastic differential equations*,  
+   **Statistics and Computing**, 34 (2024), no. 6, 197.
 
 ## Keywords
 
