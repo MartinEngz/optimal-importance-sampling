@@ -85,5 +85,75 @@ def simulate_controlled_european_call(
     est = np.mean(weighted_payoffs)
     std = np.std(weighted_payoffs, ddof=1)
     
-    
     return est, std
+
+def simulate_controlled_up_and_out_call(
+        N,
+        S0,
+        K,
+        U,
+        T,
+        r,
+        sigma,
+        M,
+        control_func,
+        return_paths=False
+)
+    """
+    Optimal-control importance sampling estimator
+    for an up-and-out European call.
+    """
+    dt = T / M
+    sqrt_dt = np.sqrt(dt)
+
+    S_curr = np.full(N, S0, dtype=float)
+    running_max = np.full(N, S0, dtype=float)
+    log_L = np.zeros(N)
+
+    if return_paths:
+        S_paths = np.empty((N, M + 1))
+        S_paths[:, 0] = S0
+    else:
+        S_paths = None
+
+    for m in range(M):
+        t_m = m * dt
+
+        zeta_m = control_func(t_m, S_curr)
+
+        dW = np.random.normal(loc=0.0, scale=sqrt_dt, size=N)
+
+        # Girsanov likelihood
+        log_L += ( -zeta_m * dW - 0.5 * zeta_m**2 * dt)
+
+        # Controlled Euler-Maruyama step
+        S_curr += (
+            r * S_curr + sigma * S_curr * zeta_m
+        ) * dt + sigma * S_curr * dW
+
+        running_max = np.maximum(
+            running_max,
+            S_curr
+        )
+
+        if return_paths:
+            S_paths[:, m+1] = S_curr
+
+    survived = running_max <= U
+
+    payoffs = (
+        np.exp(-r * T) * np.maximum(S_curr - K, 0.0) * survived
+    )
+
+    weighted_payoffs = payoffs * np.exp(log_L)
+
+    estimate = np.mean(weighted_payoffs)
+    std = np.std(weighted_payoffs, ddof=1)
+
+    diagnostics = {
+        "over_strike": int(np.sum(S_curr > K)),
+        "barrier_hits": int(np.sum(~survived)),
+        "positive_payoffs": int(np.sum(payoffs > 0)),
+    }
+
+    return estimate, std, diagnostics, S_paths

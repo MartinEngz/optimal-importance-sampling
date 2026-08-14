@@ -240,3 +240,112 @@ def plot_barrier_drift_tradeoff(
 
     fig.tight_layout()
     plt.show()
+
+def plot_barrier_optimal_control(
+        t_grid,
+        s_grid,
+        zeta,
+        K,
+        U,
+        s_min_plot=60.0,
+        clip=40.0
+):
+    t_mask = t_grid <= t_grid[-1]
+    s_mask = (
+        (s_grid >= s_min_plot)
+        & (s_grid <= U)
+    )
+    
+    t_plot = t_grid[t_mask]
+    s_plot = s_grid[s_mask]
+
+    zeta_plot = zeta[np.ix_(
+        t_mask,
+        s_mask,
+    )]
+
+    # Zeta* can become very large near the barrier/control singular regions.
+    # Therefore, clip to make visualization more readable.
+    zeta_plot = np.clip(
+        zeta_plot,
+        -clip,
+        clip
+    )
+
+    plt.figure(figure=(10, 4.8))
+
+    plt.imshow(
+        zeta_plot,
+        aspect="auto",
+        origin="lower",
+        extent=[
+            s_plot[0],
+            s_plot[-1],
+            t_plot[0],
+            t_plot[-1],
+        ]
+    )
+
+    plt.colorbar(
+        label=r"$\zeta^*(t,s)$"
+    )
+
+    plt.axvline(
+        K,
+        linestyle="--",
+        linewidth=1.0,
+        label="Strike",
+    )
+
+    plt.xlabel("Asset price $s$")
+    plt.ylabel("Time $t$")
+    plt.title(rf"Optimal control for up-and-out call ($U={U:g}$)")
+    plt.legend()
+    plt.tight_layout()
+    plt.show()
+
+def plot_controlled_barrier_paths(
+        paths,
+        T,
+        K,
+        U,
+):
+    M = paths.shape[-1] - 1
+    t = np.linspace(0.0, T, M + 1)
+
+    plt.figure(figsize=(10, 4.8))
+
+    for path in paths:
+        plt.plot(
+            t,
+            path,
+            linewidth=0.7
+        )
+
+    plt.axhline(
+        K,
+        linestyle="--",
+        label="Strike"
+    )
+
+    plt.axhline(
+        U,
+        linestyle="--",
+        label="Barrier"
+    )
+
+    plt.xlabel("Time")
+    plt.ylabel("Asset price")
+    plt.title(
+        "Controlled paths under optimal importance sampling"
+    )
+
+    plt.grid(
+        True,
+        linestyle=":",
+        linewidth=0.8
+    )
+
+    plt.legend()
+    plt.tight_layout()
+    plt.show()

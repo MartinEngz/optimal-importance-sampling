@@ -1,16 +1,35 @@
 import time
 import numpy as np
 
-from experiments.config import EUROPEAN_CALL, OPTIMAL_CONTROL, PDE_REFINEMENT
+from experiments.config import (
+    EUROPEAN_CALL, 
+    OPTIMAL_CONTROL, 
+    PDE_REFINEMENT,
+    BARRIER_CALL,
+    BARRIER_OPTIMAL_CONTROL,
+)
+
 from src.pricing import black_scholes_call_price
-from src.pde import solve_european_call_kbe
+
+from src.pde import (
+    solve_european_call_kbe,
+    solve_barrier_call_kbe,
+)
+
 from src.optimal_control import (
     compute_optimal_control,
     get_control_interpolator,
-    simulate_controlled_european_call
+    simulate_controlled_european_call,
+    simulate_controlled_up_and_out_call,
 )
+
 from src.statistics import variance_reduction
-from src.plotting import plot_vrf_vs_pde_refinement
+
+from src.plotting import (
+    plot_vrf_vs_pde_refinement,
+    plot_barrier_optimal_control,
+    plot_controlled_barrier_paths,
+)
 
 def run_european_call(std_reference=None):
     """

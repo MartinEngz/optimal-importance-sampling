@@ -51,7 +51,7 @@ BARRIER_CALL = {
     "sigma": 0.30,
     "T": 0.20,
     "U": 200.0,
-    "M": 1000,
+    "M": 1000,          # Euler-Maruyama steps for simulated paths
 }
 
 BARRIER_OPTIMAL_CONTROL = {
