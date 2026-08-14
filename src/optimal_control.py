@@ -98,7 +98,7 @@ def simulate_controlled_up_and_out_call(
         M,
         control_func,
         return_paths=False
-)
+):
     """
     Optimal-control importance sampling estimator
     for an up-and-out European call.

@@ -154,5 +154,139 @@ def run_european_call(std_reference=None):
         "vrf_results": vrf_results
     }
 
+def run_barrier_call(std_reference=None):
+    cfg = BARRIER_CALL
+    oc_cfg = BARRIER_OPTIMAL_CONTROL
+
+    # Barrier contract / SDE parameters
+    S0 = cfg["S0"]
+    K = cfg["K"]
+    U = cfg["U"]
+    r = cfg["r"]
+    sigma = cfg["sigma"]
+    T = cfg["T"]
+    M_sim = cfg["M"]
+
+    # PDE parameters
+    P_pde = oc_cfg["P_pde"]
+    M_pde = oc_cfg["M_pde"]
+    epsilon_bc = oc_cfg["epsilon_bc"]
+    N_sim = oc_cfg["N_paths_plot"]
+
+    # --- 1. Solve barrier KBE
+    s_grid, t_grid, v = solve_barrier_call_kbe(
+        S0=S0,
+        K=K,
+        U=U,
+        T=T,
+        r=r,
+        sigma=sigma,
+        M=M_pde,
+        P=P_pde,
+        epsilon_bc=epsilon_bc,
+    )
+
+    # --- 2. Construct optimal control
+    zeta = compute_optimal_control(
+        v=v,
+        s_grid=s_grid,
+        sigma=sigma
+    )
+
+    control = get_control_interpolator(
+        t_grid=t_grid,
+        s_grid=s_grid,
+        zeta=zeta
+    )
+
+    # --- 3. Plot the control
+    plot_barrier_optimal_control(
+        t_grid=t_grid,
+        s_grid=s_grid,
+        zeta=zeta,
+        K=K,
+        U=U,
+    )
+
+    # --- 4. Visualize 100 controlled paths
+    _, _, path_diagnostics, paths = simulate_controlled_up_and_out_call(
+        N=N_sim,
+        S0=S0,
+        K=K,
+        U=U,
+        T=T,
+        r=r,
+        sigma=sigma,
+        M=M_sim,
+        control_func=control,
+        return_paths=True
+    )
+
+    plot_controlled_barrier_paths(
+        paths=paths,
+        T=T,
+        K=K,
+        U=U
+    )
+
+    # --- 5. Main pricing run
+    est, std, diagnostics, _ = simulate_controlled_up_and_out_call(
+        N=N_sim,
+        S0=S0,
+        K=K,
+        U=U,
+        T=T,
+        r=r,
+        sigma=sigma,
+        M=M_sim,
+        control_func=control,
+        return_paths=False
+    )
+
+    print("-" * 45)
+    print("Up-and-out call: optimal-control IS")
+    print(
+        f"PDE grid: M={M_pde}, P={P_pde} | "
+        f"Simulation: M={M_sim}, N={N_sim}"
+    )
+    print("-" * 45)
+
+    print(f"OC-IS estimate:     {est:.8f}")
+    print(f"OC-IS std:          {std:.8f}")
+
+    print(
+        f"Terminal > K:     "
+        f"{diagnostics['over_strike']:,}"
+    )
+
+    print(
+        f"Barrier hits:     "
+        f"{diagnostics['barrier_hits']:,}"
+    )
+
+    vrf = None
+
+    if std_reference is not None:
+        vrf = variance_reduction(
+            std_reference=std_reference,
+            std_method=std
+        )
+        print(
+            f"Variance reduction vs CMC: "
+            f"{vrf:.2f}"
+        )
+
+    return {
+        "estimate": est,
+        "std": std,
+        "variance_reduction": vrf,
+        "diagnostics": diagnostics,
+        "zeta": zeta,
+        "s_grid": s_grid,
+        "t_grid": t_grid,
+    }
+
+
 if __name__ == "__main__":
-    run_european_call()
+    # run_european_call()
+    run_barrier_call()

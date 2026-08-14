@@ -272,7 +272,7 @@ def plot_barrier_optimal_control(
         clip
     )
 
-    plt.figure(figure=(10, 4.8))
+    plt.figure(figsize=(10, 4.8))
 
     plt.imshow(
         zeta_plot,

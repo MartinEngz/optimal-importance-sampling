@@ -76,7 +76,7 @@ def solve_barrier_call_kbe(
     """
     S_min = S0 * np.exp(
         (r - 0.5 * sigma**2) * T
-        - smin_sigma_mult * sigma_np.sqrt(T)
+        - smin_sigma_mult * sigma * np.sqrt(T)
     )
     S_max = U
 
@@ -89,6 +89,11 @@ def solve_barrier_call_kbe(
     v = np.zeros((M + 1, P + 1))
 
     # Terminal conditions
+    v[-1, :] = (
+        np.exp(-r * T) * np.maximum(s_grid - K, 0.0)
+    )
+
+    # Boundary conditions
     v[:, 0] = 0.0
     v[:, -1] = epsilon_bc
 
@@ -96,11 +101,11 @@ def solve_barrier_call_kbe(
 
     lower = (
         dt * r * s_inner / (2 * ds)
-        - dt * sigma**2 * s_inner**2
+        - dt * sigma**2 * s_inner**2 / (2 * ds**2)
     )
 
     diagonal = (
-        1.0 + dt * sigma**2 * s_inner**2 / (2 * ds**2)
+        1.0 + dt * sigma**2 * s_inner**2 / ds**2
     )
 
     upper = (
@@ -114,7 +119,7 @@ def solve_barrier_call_kbe(
             diagonal,
             upper[:-1]
         ],
-        offset=[-1, 0, 1],
+        offsets=[-1, 0, 1],
         format="csc",
     )
 
@@ -122,7 +127,7 @@ def solve_barrier_call_kbe(
         rhs = v[m + 1, 1:-1].copy()
 
         # Boundary contributions
-        # rhs[0] -= lower[0] * 0.0          # <-- gives -= 0.0
+        rhs[0] -= lower[0] * 0.0          # <-- gives -= 0.0
         rhs[-1] -= upper[-1]
         v[m, 1:-1] = spsolve(A, rhs)
         v[m, 0] = 0.0
