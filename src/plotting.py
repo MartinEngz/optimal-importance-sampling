@@ -349,3 +349,43 @@ def plot_controlled_barrier_paths(
     plt.legend()
     plt.tight_layout()
     plt.show()
+
+def plot_power_price_paths(
+    S_paths,
+    T,
+    K=None,
+    max_paths=100,
+    title="Simulated Power Price Paths",
+):
+    n_paths = min(max_paths, S_paths.shape[0])
+    t = np.linspace(0.0, T, S_paths.shape[1])
+
+    plt.figure(figsize=(10, 4.8))
+
+    for path in S_paths[:n_paths]:
+        plt.plot(
+            t,
+            path,
+            linewidth=0.8,
+            alpha=0.7,
+        )
+
+    if K is not None:
+        plt.axhline(
+            K,
+            linestyle="--",
+            linewidth=1.2,
+            label=f"Strike K = {K:g}",
+        )
+        plt.legend()
+
+    plt.xlabel("Time (years)")
+    plt.ylabel("Power price (EUR/MWh)")
+    plt.title(title)
+    plt.grid(
+        True,
+        linestyle=":",
+        linewidth=0.8,
+    )
+    plt.tight_layout()
+    plt.show()

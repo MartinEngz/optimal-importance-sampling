@@ -19,7 +19,8 @@ from src.statistics import confidence_interval
 
 from src.plotting import (
     plot_standard_error_convergence,
-    plot_estimates_with_ci
+    plot_estimates_with_ci,
+    plot_power_price_paths
 )
 
 from src.models import sinusoidal_log_seasonality
@@ -184,6 +185,19 @@ def run_power_cap():
         results.append(
             (N, est, std)
         )
+
+    plot_standard_error_convergence(
+        results,
+        title="Power Cap: convergence rate of standard error"
+    )
+
+    plot_power_price_paths(
+        S_paths=S_paths,
+        T=cfg["T"],
+        K=cfg["K"],
+        max_paths=100,
+        title="Mean-Reverting Power Price Paths"
+    )
 
     return {
         "results": results,
