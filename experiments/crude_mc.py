@@ -1,13 +1,29 @@
 import numpy as np
 
-from experiments.config import EUROPEAN_CALL, N_LIST, BARRIER_CALL
-from src.monte_carlo import mc_european_call_em, mc_up_and_out_call_em
+from experiments.config import (
+    EUROPEAN_CALL, 
+    N_LIST, 
+    BARRIER_CALL,
+    POWER_CAP,
+    POWER_CAP_N_LIST,
+)
+
+from src.monte_carlo import (
+    mc_european_call_em, 
+    mc_up_and_out_call_em,
+    mc_power_cap,
+)
+
 from src.pricing import black_scholes_call_price
 from src.statistics import confidence_interval
+
 from src.plotting import (
     plot_standard_error_convergence,
     plot_estimates_with_ci
 )
+
+from src.models import sinusoidal_log_seasonality
+from src.payoffs import power_cap_payoff
 
 def run_european_call():
     np.random.seed(41)
@@ -109,10 +125,73 @@ def run_barrier_call():
         "results": results,
         "std_reference": std_reference
     }
-    
 
+
+def run_power_cap():
+    cfg = POWER_CAP
+
+    X0 = np.log(cfg["S0"])
+
+    seasonal_mean = lambda t: sinusoidal_log_seasonality(
+        t=t,
+        base_price=cfg["base_price"],
+        amplitude=cfg["seasonal_amplitude"],
+        phase=cfg["seasonal_phase"]
+    )
+
+    delivery_indices = np.arange(
+        1,
+        cfg["M"] + 1
+    )
+
+    results = []
+
+    for N in POWER_CAP_N_LIST:
+        est, std, S_paths = mc_power_cap(
+            N=N,
+            X0=X0,
+            K=cfg["K"],
+            kappa=cfg["kappa"],
+            sigma=cfg["sigma"],
+            T=cfg["T"],
+            M=cfg["M"],
+            r=cfg["r"],
+            volume=cfg["volume"],
+            delivery_indices=delivery_indices,
+            seasonal_mean=seasonal_mean,
+        )
+
+        positive_payoffs = np.sum(
+            power_cap_payoff(
+                S_paths=S_paths,
+                K=cfg["K"],
+                delivery_indices=delivery_indices,
+                r=cfg["r"],
+                T=cfg["T"],
+                M=cfg["M"],
+                volume=cfg["volume"],
+            ) > 0
+        )
+
+        print(
+            f"N={N:>7,d} | "
+            f"Price={est:.6f} | "
+            f"Std={std:.6f} | "
+            f"Positive paths={positive_payoffs:,} "
+            f"({positive_payoffs / N:.2%})"
+        )
+
+        results.append(
+            (N, est, std)
+        )
+
+    return {
+        "results": results,
+        "std_reference": results[-1][2],
+    }
 
 
 if __name__ == "__main__":
     # run_european_call()
-    run_barrier_call()
+    # run_barrier_call()
+    run_power_cap()

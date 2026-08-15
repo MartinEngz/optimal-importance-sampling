@@ -67,3 +67,23 @@ BARRIER_FINE = {
     "M_pde": 1500,
 }
 
+POWER_CAP = { # intial numerical parameters, not a Nord Pool calibration
+    "S0": 50.0,          # EUR/MWh
+    "base_price": 50.0,
+    "K": 100.0,          # high strike
+    "kappa": 8.0,
+    "sigma": 0.8,
+    "T": 30 / 365,       # one-month horizon
+    "M": 30,             # initial daily discretization
+    "r": 0.02,
+    "volume": 1.0,
+    "seasonal_amplitude": 0.20,
+    "seasonal_phase": 0.0,
+}
+
+POWER_CAP_N_LIST = [
+    100,
+    1_000,
+    10_000,
+    100_000,
+]
