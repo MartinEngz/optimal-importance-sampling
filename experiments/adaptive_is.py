@@ -2,11 +2,29 @@ import numpy as np
 import matplotlib.pyplot as plt
 from scipy.stats import norm
 
-from experiments.config import EUROPEAN_CALL, ADAPTIVE_IS
-from src.importance_sampling import adaptive_is_rtilde
-from src.models import log_price_params
+from experiments.config import (
+    EUROPEAN_CALL, 
+    ADAPTIVE_IS,
+    POWER_CAP,
+    POWER_CAP_ADAPTIVE_IS,
+)
+from src.importance_sampling import (
+    adaptive_is_rtilde,
+    adaptive_is_theta_power_cap
+)
+from src.models import (
+    log_price_params,
+    sinusoidal_log_seasonality,
+)
+
 from src.pricing import black_scholes_call_price
-from src.statistics import variance_reduction, absolute_error
+
+from src.statistics import (
+    variance_reduction, 
+    absolute_error,
+)
+
+from src.plotting import plot_power_cap_adaptive_objective
 
 def plot_objective_sanity_check(result):
     """
@@ -119,5 +137,100 @@ def run_european_call(std_reference=None):
         "variance_reduction": vrf
     }
 
+
+def run_power_cap(std_reference=None):
+    cfg = POWER_CAP
+    adaptive_cfg = POWER_CAP_ADAPTIVE_IS
+
+    X0 = np.log(cfg["S0"])
+
+    seasonal_mean = lambda t: sinusoidal_log_seasonality(
+        t=t,
+        base_price=cfg["base_price"],
+        amplitude=cfg["seasonal_amplitude"],
+        phase=cfg["seasonal_phase"],
+    )
+
+    delivery_indices = np.arange(1, cfg["M"] + 1)
+
+    result = adaptive_is_theta_power_cap(
+        X0=X0,
+        K=cfg["K"],
+        kappa=cfg["kappa"],
+        sigma=cfg["sigma"],
+        T=cfg["T"],
+        M=cfg["M"],
+        r=cfg["r"],
+        volume=cfg["volume"],
+        delivery_indices=delivery_indices,
+        seasonal_mean=seasonal_mean,
+        **adaptive_cfg,
+    )
+
+    print("\n--- Adaptive IS: Power Cap ---")
+
+    print(
+        f"Optimal theta:        "
+        f"{result['theta']:.4f}"
+    )
+
+    print(
+        "Price estimate:        "
+        f"{result['estimate']:.8e}"
+    )
+
+    print(
+        f"Weighted payoff std:  "
+        f"{result['std']:.8e}"
+    )
+
+    print(
+        f"Positive paths:       "
+        f"{result['positive_paths']:,}"
+        f"({result['positive_rate']:.2%})"
+    )
+
+    vrf = None
+
+    if std_reference is not None:
+        vrf = variance_reduction(
+            std_reference=std_reference,
+            std_method=result["std"]
+        )
+
+        print(
+            f"Variance reduction: "
+            f"{vrf:.2f}"
+        )
+
+    result["variance_reduction"] = vrf
+
+    plot_power_cap_adaptive_objective(
+        theta=result["theta_grid"],
+        objective=result["objective_grid"],
+        theta_opt=result["theta"],
+    )
+
+    return result
+
 if __name__ == "__main__":
-    run_european_call()
+    # run_european_call()
+    run_power_cap(std_reference=0.001252)
+
+# Iteration  1 | N=  1,000 | theta_opt=11.8000 | J(theta)=1.212915e-09
+# Iteration  2 | N=  2,000 | theta_opt=11.6750 | J(theta)=1.171739e-09
+# Iteration  3 | N=  4,000 | theta_opt=15.2250 | J(theta)=1.661158e-09
+# Iteration  4 | N=  8,000 | theta_opt=14.9000 | J(theta)=1.550510e-09
+# Iteration  5 | N= 16,000 | theta_opt=11.3500 | J(theta)=2.001198e-09
+# Iteration  6 | N= 32,000 | theta_opt=11.7500 | J(theta)=1.768160e-09
+# Iteration  7 | N= 64,000 | theta_opt=11.6000 | J(theta)=1.597664e-09
+# Iteration  8 | N=128,000 | theta_opt=13.1750 | J(theta)=2.009877e-09
+# Iteration  9 | N=256,000 | theta_opt=11.0500 | J(theta)=1.947082e-09
+# Iteration 10 | N=512,000 | theta_opt=10.9750 | J(theta)=1.987006e-09
+
+# --- Adaptive IS: Power Cap ---
+# Optimal theta:        10.9750
+# Price estimate:        1.53852528e-05
+# Weighted payoff std:  4.08309528e-05
+# Positive paths:       417,631(40.78%)
+# Variance reduction: 940.22  

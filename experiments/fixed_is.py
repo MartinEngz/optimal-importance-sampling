@@ -162,7 +162,9 @@ def run_barrier_call(std_reference=None):
         "results": results_list
     }
 
-def run_power_cap(std_reference=None):
+def run_power_cap(std_reference=None, seed=12):
+    np.random.seed(seed)
+
     cfg = POWER_CAP
 
     N = 100_000

@@ -94,7 +94,7 @@ def simulate_mean_reverting_log_price_paths(
         )
         S_paths[:, m + 1] = np.exp(X_paths[:, m + 1])
 
-    return S_paths, W_T
+    return S_paths
 
 def sinusoidal_log_seasonality(
         t,

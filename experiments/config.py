@@ -88,3 +88,16 @@ POWER_CAP_N_LIST = [
     100_000,
     1_000_000
 ]
+
+POWER_CAP_ADAPTIVE_IS = {
+    "tol": 0.05,
+    "N_bar": 1_000,
+    "gamma": 2.0,
+    "theta_min": 5.0,   # inferred from fixed is plot
+    "theta_max": 20.0,  # inferred from fixed is plot
+    "n_grid": 21,
+    "n_refine": 41,
+    "refine_half_width": 0.5,
+    "max_iter": 10,
+    "random_seed": 123,
+}

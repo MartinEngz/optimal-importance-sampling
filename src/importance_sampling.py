@@ -312,3 +312,259 @@ def is_fixed_theta_power_cap(
     positive_paths = np.sum(payoffs > 0)
 
     return estimate, std, positive_paths
+
+
+def evaluate_power_cap_is_theta(
+        theta,
+        dW,
+        X0,
+        K,
+        kappa,
+        sigma,
+        T,
+        M,
+        r,
+        volume,
+        delivery_indices,
+        seasonal_mean,
+):
+    """
+    Evaluate fixed-control IS for a power cap using supplied Brownian 
+    increments.
+
+    Using the same dW for different candidate theta values gives
+    common random numbers and makes the optimization objective
+    substantially less noisy.
+    """
+    N = dW.shape[0]
+    dt = T / M
+
+    X_paths = np.empty((N, M + 1))
+    X_paths[:, 0] = X0
+
+    S_paths = np.empty_like(X_paths)
+    S_paths[:, 0] = np.exp(X0)
+
+    for m in range(M):
+        t_m = m * dt
+        X_curr = X_paths[:, m]
+
+        X_paths[:, m + 1] = (
+            X_curr + ( kappa * (seasonal_mean(t_m) - X_curr) + sigma * theta ) * dt + sigma * dW[:, m]
+        )
+
+        S_paths[:, m + 1] = np.exp(X_paths[:, m + 1])
+
+    payoffs = power_cap_payoff(
+        S_paths=S_paths,
+        K=K,
+        delivery_indices=delivery_indices,
+        r=r,
+        T=T,
+        M=M,
+        volume=volume,
+    )
+
+    W_T = np.sum(dW, axis=1)
+
+    log_L = (
+        -theta * W_T - 0.5 * theta**2 * T
+    )
+
+    weighted_payoffs = (
+        payoffs * np.exp(log_L)
+    )
+
+    estimate = np.mean(weighted_payoffs)
+    std = np.std(weighted_payoffs, ddof=1)
+
+    # Empirical second moment: minimizing this is equivalent to minimizing variance
+    second_moment = np.mean(
+        weighted_payoffs**2
+    )
+
+    positive_paths = np.sum(payoffs > 0)
+
+    return {
+        "estimate": estimate,
+        "std": std,
+        "second_moment": second_moment,
+        "positive_paths": positive_paths,
+        "positive_rate": positive_paths / N,
+    }
+
+def adaptive_is_theta_power_cap(
+        X0, K, kappa, sigma, T, M, r, volume, delivery_indices, seasonal_mean,
+        tol=0.05,
+        N_bar=1_000,
+        gamma=2.0,
+        theta_min=0.0,
+        theta_max=20.0,
+        n_grid=41,
+        n_refine=101,
+        refine_half_width=1.0,
+        max_iter=15,
+        random_seed=42,
+):
+    """
+    Adaptive importance sampling for a cap-style power derivative.
+
+    Iteratively minimizes the empirical second moment of the 
+    importance-sampling estimator over a constant Brownian control theta.
+    """
+    rng = np.random.default_rng(random_seed)
+
+    dt = T / M
+
+    theta_previous = None
+
+    history = []
+
+    N = N_bar
+
+    dW = rng.normal(
+        loc=0.0,
+        scale=np.sqrt(dt),
+        size=(N_bar, M)
+    )
+
+    for iteration in range(1, max_iter + 1):
+        N = dW.shape[0]
+        
+        # 1. Coarse search
+        theta_grid = np.linspace(
+            theta_min,
+            theta_max, 
+            n_grid
+        )
+
+        coarse_objective = []
+
+        for theta in theta_grid:
+            result = evaluate_power_cap_is_theta(
+                theta=theta,
+                dW=dW,
+                X0=X0,
+                K=K,
+                kappa=kappa,
+                sigma=sigma,
+                T=T,
+                M=M,
+                r=r,
+                volume=volume,
+                delivery_indices=delivery_indices,
+                seasonal_mean=seasonal_mean,
+            )
+
+            coarse_objective.append(
+                result["second_moment"]
+            )
+
+        coarse_objective = np.asarray(
+            coarse_objective
+        )
+
+        best_coarse = theta_grid[
+            np.argmin(coarse_objective)
+        ]
+
+        # 2. Local refinement
+        lo = max(theta_min, best_coarse - refine_half_width)
+        hi = min(theta_max, best_coarse + refine_half_width)
+
+        theta_refined = np.linspace(lo, hi, n_refine)
+
+        refined_objective = []
+
+        for theta in theta_refined:
+            result = evaluate_power_cap_is_theta(
+                theta=theta,
+                dW=dW,
+                X0=X0,
+                K=K,
+                kappa=kappa,
+                sigma=sigma,
+                T=T,
+                M=M,
+                r=r,
+                volume=volume,
+                delivery_indices=delivery_indices,
+                seasonal_mean=seasonal_mean,
+            )
+
+            refined_objective.append(result["second_moment"])
+
+        refined_objective = np.asarray(refined_objective)
+
+        theta_opt = theta_refined[np.argmin(refined_objective)]
+
+        # Diagnostics
+        history.append({
+            "iteration": iteration,
+            "N": N,
+            "theta": theta_opt,
+            "objective": np.min(refined_objective),
+        })
+
+        print(
+            f"Iteration {iteration:>2d} | "
+            f"N={N:>7,d} | "
+            f"dW.shape={dW.shape} | "
+            f"theta_opt={theta_opt:.4f} | "
+            f"J(theta)={np.min(refined_objective):.6e}"
+        )
+
+        # 3. Convergence test
+        if theta_previous is not None:
+            if abs(theta_opt - theta_previous) < tol:
+                break
+
+        theta_previous = theta_opt
+
+        if iteration < max_iter:            
+            N_new = int(np.ceil(gamma*N))
+
+            extra = rng.normal(
+                loc=0.0,
+                scale=np.sqrt(dt),
+                size=(N_new - N, M)
+            )
+
+            dW = np.vstack((dW, extra))
+            
+
+    # Final independent simulation at selected optimal theta
+    dW_final = rng.normal(
+        loc=0.0,
+        scale=np.sqrt(dt),
+        size=(N,M),
+    )
+
+    final_result = evaluate_power_cap_is_theta(
+        theta=theta_opt,
+        dW=dW_final,
+        X0=X0,
+        K=K,
+        kappa=kappa,
+        sigma=sigma,
+        T=T,
+        M=M,
+        r=r,
+        volume=volume,
+        delivery_indices=delivery_indices,
+        seasonal_mean=seasonal_mean,
+    )
+
+    return {
+        "theta": theta_opt,
+        "estimate": final_result["estimate"],
+        "std": final_result["std"],
+        "positive_paths": final_result["positive_paths"],
+        "positive_rate": final_result["positive_rate"],
+        "second_moment": final_result["second_moment"],
+        "iterations": iteration,
+        "N": N,
+        "history": history,
+        "theta_grid": theta_refined,
+        "objective_grid": refined_objective,
+    }

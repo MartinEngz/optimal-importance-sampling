@@ -452,3 +452,44 @@ def plot_power_cap_fixed_is(results):
 
     fig.tight_layout()
     plt.show()
+
+
+def plot_power_cap_adaptive_objective(
+    theta,
+    objective,
+    theta_opt,
+):
+    plt.figure(figsize=(8.5, 4.8))
+
+    plt.plot(
+        theta,
+        objective,
+        "-",
+        linewidth=1.2,
+    )
+
+    plt.axvline(
+        theta_opt,
+        linestyle="--",
+        linewidth=1.2,
+        label=rf"$\theta^*={theta_opt:.3f}$",
+    )
+
+    plt.xlabel(r"IS control $\theta$")
+    plt.ylabel(
+        r"Estimated second moment $J(\theta)$"
+    )
+
+    plt.title(
+        "Adaptive Importance Sampling Objective for Power Cap"
+    )
+
+    plt.grid(
+        True,
+        linestyle=":",
+        linewidth=0.8,
+    )
+
+    plt.legend()
+    plt.tight_layout()
+    plt.show()
