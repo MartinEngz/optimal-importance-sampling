@@ -67,7 +67,7 @@ def simulate_mean_reverting_log_price_paths(
     Returns
     -------
     S_paths : ndarray, shape (N, M + 1)
-        Simulated spot-price pahts.
+        Simulated spot-price paths.
     """
     dt = T / M
     sqrt_dt = np.sqrt(dt)
@@ -82,8 +82,8 @@ def simulate_mean_reverting_log_price_paths(
         t_m = m * dt
 
         dW = np.random.normal(
-            0.0,
-            sqrt_dt,
+            loc=0.0,
+            scale=sqrt_dt,
             size=N,
         )
 
@@ -94,7 +94,7 @@ def simulate_mean_reverting_log_price_paths(
         )
         S_paths[:, m + 1] = np.exp(X_paths[:, m + 1])
 
-    return S_paths
+    return S_paths, W_T
 
 def sinusoidal_log_seasonality(
         t,

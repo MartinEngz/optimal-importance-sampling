@@ -1,15 +1,32 @@
 import numpy as np
 
-from experiments.config import EUROPEAN_CALL, N_LIST, BARRIER_CALL
-from src.importance_sampling import is_fixed_rtilde, is_fixed_rtilde_barrier
+from experiments.config import (
+    EUROPEAN_CALL, 
+    N_LIST, 
+    BARRIER_CALL,
+    POWER_CAP
+)
+
+from src.importance_sampling import (
+    is_fixed_rtilde, 
+    is_fixed_rtilde_barrier,
+    is_fixed_theta_power_cap
+)
+
 from src.pricing import black_scholes_call_price
+
 from src.statistics import (
     confidence_interval,
     variance_reduction,
     absolute_error,
     standard_error
 )
-from src.plotting import plot_estimates_with_ci, plot_barrier_drift_tradeoff
+from src.plotting import (
+    plot_estimates_with_ci, 
+    plot_barrier_drift_tradeoff,
+)
+
+from src.models import sinusoidal_log_seasonality
 
 def run_european_call(std_reference=None):
     cfg=EUROPEAN_CALL
@@ -144,6 +161,80 @@ def run_barrier_call(std_reference=None):
         "results": results_list
     }
 
+def run_power_cap(std_reference=None):
+    cfg = POWER_CAP
+
+    N = 100_000
+    X0 = np.log(cfg["S0"])
+
+    seasonal_mean = lambda t: sinusoidal_log_seasonality(
+        t=t,
+        base_price=cfg["base_price"],
+        amplitude=cfg["seasonal_amplitude"],
+        phase=cfg["seasonal_phase"],
+    )
+
+    delivery_indices = np.arange(1, cfg["M"] + 1)
+
+    theta_values = [
+        0.0, 2.0, 4.0, 6.0, 8.0, 10.0, 12.0, 14.0, 16.0
+    ]
+
+    results = []
+
+    for theta in theta_values:
+        est, std, positive_paths = (
+            is_fixed_theta_power_cap(
+                N=N,
+                X0=X0,
+                K=cfg["K"],
+                kappa=cfg["kappa"],
+                sigma=cfg["sigma"],
+                T=cfg["T"],
+                M=cfg["M"],
+                r=cfg["r"],
+                volume=cfg["volume"],
+                delivery_indices=delivery_indices,
+                seasonal_mean=seasonal_mean,
+                theta=theta,
+            )
+        )
+
+        positive_rate = positive_paths / N
+
+        vrf = None
+        if std_reference is not None:
+            vrf = variance_reduction(
+                std_reference=std_reference,
+                std_method=std,
+            )
+
+        results.append({
+            "theta": theta,
+            "estimate": est,
+            "std": std,
+            "positive_paths": positive_paths,
+            "positive_rate": positive_rate,
+            "vrf": vrf,
+        })
+
+        print(
+            f"theta={theta:>4.1f} | "
+            f"Price={est:.8f} | "
+            f"Std={std:.8f} | "
+            f"Positive payoffs={positive_paths:>6,d} "
+            f"({positive_rate:.2%})"
+            + (
+                f" | VRF={vrf:.2f}"
+                if vrf is not None else ""
+            )
+        )
+
+    return {
+        "results": results,
+    }
+
 if __name__ == "__main__":
     # run_european_call()
-    run_barrier_call()
+    # run_barrier_call()
+    run_power_cap()

@@ -1,10 +1,20 @@
-# is_fixed_rtilde
-
 import numpy as np
+
 from scipy.stats import norm
+
 from src.models import log_price_params
-from src.payoffs import european_call_payoff, up_and_out_call_payoff
-from src.models import simulate_gbm_em_paths
+
+from src.payoffs import (
+    european_call_payoff, 
+    up_and_out_call_payoff,
+    power_cap_payoff,
+)
+
+from src.models import (
+    simulate_gbm_em_paths,
+    simulate_mean_reverting_log_price_paths,
+)
+
 from src.statistics import standard_error
 
 def is_fixed_rtilde(N, S0, K, r, r_tilde, sigma, T):
@@ -37,6 +47,7 @@ def is_fixed_rtilde(N, S0, K, r, r_tilde, sigma, T):
     std = np.std(weighted_payoffs, ddof=1)
     return est, std
 
+
 def is_fixed_rtilde_barrier(N, S0, K, U, r, r_tilde, sigma, T, M, random_seed=None):
     """
     Importance sampling estimator for the Barrier call by changing the drift from
@@ -56,9 +67,6 @@ def is_fixed_rtilde_barrier(N, S0, K, U, r, r_tilde, sigma, T, M, random_seed=No
     std = np.std(weighted_payoffs, ddof=1)
 
     return est, std, S_paths
-
-
-
 
 
 def adaptive_is_rtilde(
@@ -218,3 +226,89 @@ def adaptive_is_rtilde(
         "sigma": sigma,
         "T": T,
     }
+
+
+def is_fixed_theta_power_cap(
+        N,
+        X0,
+        K,
+        kappa,
+        sigma,
+        T,
+        M,
+        r,
+        volume,
+        delivery_indices,
+        seasonal_mean,
+        theta,
+        random_seed=None
+):
+    """
+    Fixed-control importance sampling for a cap-style power derivative.
+
+    Simulates
+
+        dX_T = [kappa(mu(t) - X_t) + sigma*theta] dt + sigma dW_t
+    
+    and reweights with the Girsanov likelihood ratio
+
+        L_T = exp(-theta W_T - 0.5 theta^2 T).
+
+    Obs: this is kept self-contained rather than complicating the existing model
+    simulator by changing its drift term and exposing W_T.
+    """
+    if random_seed is not None:
+        np.random.seed(random_seed)
+
+    dt = T / M
+    sqrt_dt = np.sqrt(dt)
+
+    X_paths = np.empty((N, M + 1))
+    X_paths[:, 0] = X0
+
+    S_paths = np.empty_like(X_paths)
+    S_paths[:, 0] = np.exp(X0)
+
+    W_T = np.zeros(N)
+    for m in range(M):
+        t_m = m * dt
+
+        dW = np.random.normal(
+            loc=0.0,
+            scale=sqrt_dt,
+            size=N,
+        )
+
+        W_T += dW
+
+        X_curr = X_paths[:, m]
+
+        X_paths[:, m]
+
+        X_paths[:, m + 1] = (
+            X_curr + (kappa * (seasonal_mean(t_m) - X_curr) + sigma * theta) * dt + sigma * dW
+        )
+        S_paths[:, m + 1] = np.exp(X_paths[:, m + 1])
+
+    payoffs = power_cap_payoff(
+        S_paths=S_paths,
+        K=K,
+        delivery_indices=delivery_indices,
+        r=r,
+        T=T,
+        M=M,
+        volume=volume,
+    )
+
+    likelihood_ratio = np.exp(
+        -theta * W_T - 0.5 * theta**2 * T
+    )
+    
+    weighted_payoffs = payoffs * likelihood_ratio
+
+    estimate = np.mean(weighted_payoffs)
+    std = np.std(weighted_payoffs, ddof=1)
+
+    positive_paths = np.sum(payoffs > 0)
+
+    return estimate, std, positive_paths
