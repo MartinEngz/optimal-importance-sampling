@@ -389,3 +389,66 @@ def plot_power_price_paths(
     )
     plt.tight_layout()
     plt.show()
+
+
+def plot_power_cap_fixed_is(results):
+    """
+    Plot how the fixed IS control theta affects
+    payoff frequency and variance reduction.
+    """
+    theta = np.array([res["theta"] for res in results])
+    positive_rate = np.array(
+        [res["positive_rate"] for res in results]
+    )
+    vrf = np.array(
+        [res["vrf"] for res in results]
+    )
+
+    fig, ax1 = plt.subplots(figsize=(9, 5))
+
+    ax1.plot(
+        theta,
+        100 * positive_rate,
+        "o-",
+        linewidth=1.2,
+        markersize=5,
+        label="Positive payoff paths",
+    )
+
+    ax1.set_xlabel(r"IS control $\theta$")
+    ax1.set_ylabel("Positive payoff paths (%)")
+    ax1.grid(
+        True,
+        linestyle=":",
+        linewidth=0.8,
+    )
+
+    ax2 = ax1.twinx()
+
+    ax2.plot(
+        theta,
+        vrf,
+        "s--",
+        linewidth=1.2,
+        markersize=5,
+        label="Variance reduction factor",
+    )
+
+    ax2.set_ylabel("Variance reduction factor")
+
+    # Combine legends from both axes
+    lines_1, labels_1 = ax1.get_legend_handles_labels()
+    lines_2, labels_2 = ax2.get_legend_handles_labels()
+
+    ax1.legend(
+        lines_1 + lines_2,
+        labels_1 + labels_2,
+        loc="best",
+    )
+
+    plt.title(
+        "Fixed Importance Sampling for Power Cap"
+    )
+
+    fig.tight_layout()
+    plt.show()

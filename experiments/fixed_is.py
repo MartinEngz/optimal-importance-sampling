@@ -24,6 +24,7 @@ from src.statistics import (
 from src.plotting import (
     plot_estimates_with_ci, 
     plot_barrier_drift_tradeoff,
+    plot_power_cap_fixed_is,
 )
 
 from src.models import sinusoidal_log_seasonality
@@ -230,6 +231,8 @@ def run_power_cap(std_reference=None):
             )
         )
 
+    plot_power_cap_fixed_is(results=results)
+
     return {
         "results": results,
     }
@@ -237,4 +240,4 @@ def run_power_cap(std_reference=None):
 if __name__ == "__main__":
     # run_european_call()
     # run_barrier_call()
-    run_power_cap()
+    run_power_cap(std_reference=0.001252)
