@@ -13,6 +13,7 @@ from src.payoffs import (
 from src.models import (
     simulate_gbm_em_paths,
     simulate_mean_reverting_log_price_paths,
+    simulate_mean_reverting_jump_price_paths,
 )
 
 from src.statistics import standard_error
@@ -327,6 +328,10 @@ def evaluate_power_cap_is_theta(
         volume,
         delivery_indices,
         seasonal_mean,
+        jump_increments=None,
+        jump_intensity=None,
+        jump_scale=None,
+        jump_reversion=None
 ):
     """
     Evaluate fixed-control IS for a power cap using supplied Brownian 
@@ -337,6 +342,36 @@ def evaluate_power_cap_is_theta(
     substantially less noisy.
     """
     N = dW.shape[0]
+
+    if jump_increments is None:
+        # Diffusion-only model
+        S_paths = simulate_mean_reverting_log_price_paths(
+            N=N,
+            X0=X0,
+            kappa=kappa,
+            sigma=sigma,
+            T=T,
+            M=M,
+            seasonal_mean=seasonal_mean,
+            theta=theta,
+        )
+    else:
+        # Jump model
+        S_paths = simulate_mean_reverting_jump_price_paths(
+            N=N,
+            X0=X0,
+            kappa=kappa,
+            sigma=sigma,
+            T=T,
+            M=M,
+            seasonal_mean=seasonal_mean,
+            jump_intensity=jump_intensity,
+            jump_scale=jump_scale,
+            jump_reversion=jump_reversion,
+            theta=theta,
+            dW=dW,
+            jump_increments=jump_increments
+        )
     dt = T / M
 
     X_paths = np.empty((N, M + 1))
@@ -405,6 +440,10 @@ def adaptive_is_theta_power_cap(
         refine_half_width=1.0,
         max_iter=15,
         random_seed=42,
+        jump_intensity=None,
+        jump_scale=None,
+        jump_reversion=None,
+        jump_increments=None,
 ):
     """
     Adaptive importance sampling for a cap-style power derivative.
@@ -427,6 +466,8 @@ def adaptive_is_theta_power_cap(
         scale=np.sqrt(dt),
         size=(N_bar, M)
     )
+
+    
 
     for iteration in range(1, max_iter + 1):
         N = dW.shape[0]

@@ -101,3 +101,9 @@ POWER_CAP_ADAPTIVE_IS = {
     "max_iter": 10,
     "random_seed": 123,
 }
+
+POWER_CAP_JUMP = {
+    "jump_intensity": 20.0,
+    "jump_scale": 0.20,
+    "jump_reversion": 50.0,
+}

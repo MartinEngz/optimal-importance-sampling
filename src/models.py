@@ -40,7 +40,10 @@ def simulate_mean_reverting_log_price_paths(
         sigma,
         T,
         M,
-        seasonal_mean
+        seasonal_mean,
+        rng=None,
+        dW=None,
+        theta=0.0,
 ):
     """
     Simulate a mean-reverting log-price process
@@ -63,12 +66,23 @@ def simulate_mean_reverting_log_price_paths(
         Number of time steps.
     seasonal_mean : callable
         Function mu(t) returning the seasonal log-price level.
-
+    theta : float, optional
+            Constant Brownian importance-sampling control.
+            theta=0 gives the original measure.
+    rng : np.random.Generator, optional
+        Random number generator.
+    dW : ndarray, optional, shape (N, M)
+        Pre-generated Brownian increments. Supplying these allows
+        common random numbers across candidate theta values.
+        
     Returns
     -------
     S_paths : ndarray, shape (N, M + 1)
         Simulated spot-price paths.
     """
+    if rng is None:
+        rng = np.random.default_rng()
+
     dt = T / M
     sqrt_dt = np.sqrt(dt)
 
@@ -78,19 +92,20 @@ def simulate_mean_reverting_log_price_paths(
     S_paths = np.empty_like(X_paths)
     S_paths[:, 0] = np.exp(X0)
 
-    for m in range(M):
-        t_m = m * dt
-
-        dW = np.random.normal(
+    if dW is None:
+        dW = rng.normal(
             loc=0.0,
             scale=sqrt_dt,
-            size=N,
+            size=(N, M),
         )
+
+    for m in range(M):
+        t_m = m * dt
 
         X_curr = X_paths[:, m]
 
         X_paths[:, m + 1] = (
-            X_curr + kappa * (seasonal_mean(t_m) - X_curr) * dt + sigma * dW
+            X_curr + ( kappa * (seasonal_mean(t_m) - X_curr) + sigma * theta ) * dt + sigma * dW[:, m]
         )
         S_paths[:, m + 1] = np.exp(X_paths[:, m + 1])
 
@@ -109,4 +124,159 @@ def sinusoidal_log_seasonality(
         np.log(base_price) + amplitude * np.cos(2 * np.pi * (t - phase))
     )
 
+def simulate_mean_reverting_jump_price_paths(
+    N,
+    X0,
+    kappa,
+    sigma,
+    T,
+    M,
+    seasonal_mean,
+    jump_intensity,
+    jump_scale,
+    jump_reversion,
+    theta=0.0,
+    dW=None,
+    jump_increments=None,
+    rng=None,
+):
+    """
+    Simulate a seasonal mean-reverting log-price model with
+    temporary positive price spikes.
 
+    Model
+    -----
+        X_t = Y_t + Z_t
+        dY_t = [kappa * (mu(t) - Y_t) + sigma * theta] dt
+               + sigma dW_t
+        dZ_t = -jump_reversion * Z_t dt + dJ_t
+    where J_t is a compound Poisson process with intensity
+    jump_intensity and exponentially distributed jump sizes.
+
+    Parameters
+    ----------
+    N : int
+        Number of paths.
+
+    X0 : float
+        Initial log spot price.
+
+    kappa : float
+        Mean-reversion speed of the diffusion factor.
+
+    sigma : float
+        Diffusion volatility.
+
+    T : float
+        Time horizon in years.
+
+    M : int
+        Number of time steps.
+
+    seasonal_mean : callable
+        Deterministic seasonal log-price level mu(t).
+
+    jump_intensity : float
+        Expected number of jumps per year.
+
+    jump_scale : float
+        Mean size of individual exponential jumps in log-price units.
+
+    jump_reversion : float
+        Mean-reversion speed of the spike factor.
+
+    theta : float, optional
+        Constant Brownian importance-sampling control.
+        theta=0 gives the original measure.
+
+    dW : ndarray, optional, shape (N, M)
+        Pre-generated Brownian increments. Supplying these allows
+        common random numbers across candidate theta values.
+
+    jump_increments : ndarray, optional, shape (N, M)
+        Pre-generated compound-Poisson jump increments. Supplying
+        these allows the same jump realizations to be reused across
+        candidate theta values.
+
+    rng : np.random.Generator, optional
+        Random number generator.
+
+    Returns
+    -------
+    S_paths : ndarray, shape (N, M + 1)
+        Simulated electricity spot-price paths.
+    """
+    if rng is None:
+        rng = np.random.default_rng()
+
+    dt = T / M
+    sqrt_dt = np.sqrt(dt)
+
+    # --- Brownian increments
+
+    if dW is None:
+        dW = rng.normal(
+            loc=0.0,
+            scale=sqrt_dt,
+            size=(N, M),
+        )
+
+    # --- Compound-Poisson jump increments
+
+    if jump_increments is None:
+        jump_counts = rng.poisson(
+            jump_intensity * dt,
+            size=(N, M),
+        )
+
+        jump_increments = np.zeros((N, M))
+
+        mask = jump_counts > 0
+
+        # Sum of n Exp(scale) variables is Gamma(n, scale)
+        jump_increments[mask] = rng.gamma(
+            shape=jump_counts[mask],
+            scale=jump_scale,
+        )
+
+    # --- State variables
+
+    Y_paths = np.empty((N, M + 1))
+    Z_paths = np.zeros((N, M + 1))
+
+    Y_paths[:, 0] = X0
+
+    S_paths = np.empty_like(Y_paths)
+    S_paths[:, 0] = np.exp(X0)
+
+    # Exact decay factor for the spike component
+    jump_decay = np.exp(
+        -jump_reversion * dt
+    )
+    # ---  Simulation
+    for m in range(M):
+        t_m = m * dt
+
+        Y_curr = Y_paths[:, m]
+        Z_curr = Z_paths[:, m]
+
+        Y_paths[:, m + 1] = (
+            Y_curr
+            + (
+                kappa
+                * (seasonal_mean(t_m) - Y_curr)
+                + sigma * theta
+            ) * dt
+            + sigma * dW[:, m]
+        )
+
+        Z_paths[:, m + 1] = (
+            jump_decay * Z_curr
+            + jump_increments[:, m]
+        )
+
+        S_paths[:, m + 1] = np.exp(
+            Y_paths[:, m + 1] + Z_paths[:, m + 1]
+        )
+
+    return S_paths
