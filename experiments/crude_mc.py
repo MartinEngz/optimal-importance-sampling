@@ -6,6 +6,7 @@ from experiments.config import (
     BARRIER_CALL,
     POWER_CAP,
     POWER_CAP_N_LIST,
+    POWER_CAP_JUMP,
 )
 
 from src.monte_carlo import (
@@ -205,8 +206,78 @@ def run_power_cap():
         "std_reference": results[-1][2],
     }
 
+def run_power_cap_jump_model():
+    cfg = POWER_CAP
+    cfg_jump_model = POWER_CAP_JUMP
+
+    X0 = np.log(cfg["S0"])
+    
+    seasonal_mean = lambda t: sinusoidal_log_seasonality(
+        t=t,
+        base_price=cfg["base_price"],
+        amplitude=cfg["seasonal_amplitude"],
+        phase=cfg["seasonal_phase"]
+    )
+
+    delivery_indices = np.arange(
+            1,
+            cfg["M"] + 1
+        )
+    
+    results = []
+
+    for N in POWER_CAP_N_LIST:
+        est, std, S_paths = mc_power_cap(
+            N=N,
+            X0=X0,
+            K=cfg["K"],
+            kappa=cfg["kappa"],
+            sigma=cfg["sigma"],
+            T=cfg["T"],
+            M=cfg["M"],
+            r=cfg["r"],
+            volume=cfg["volume"],
+            delivery_indices=delivery_indices,
+            seasonal_mean=seasonal_mean,
+            jump_intensity=cfg_jump_model["jump_intensity"],
+            jump_scale=cfg_jump_model["jump_scale"],
+            jump_reversion=cfg_jump_model["jump_reversion"]
+        )
+
+        positive_payoffs = np.sum(
+            power_cap_payoff(
+                S_paths=S_paths,
+                K=cfg["K"],
+                delivery_indices=delivery_indices,
+                r=cfg["r"],
+                T=cfg["T"],
+                M=cfg["M"],
+                volume=cfg["volume"],
+            ) > 0
+        )
+
+        print(
+            f"N={N:>7,d} | "
+            f"Price={est:.6f} | "
+            f"Std={std:.6f} | "
+            f"Positive paths={positive_payoffs:,} "
+            f"({positive_payoffs / N:.2%})"
+        )
+
+        results.append(
+            (N, est, std)
+        )
+
+    # results for N=1m: N=1,000,000 | Price=0.023716 | Std=0.138714 | Positive paths=114,123 (11.41%)
+    return {
+        "results": results,
+        "std_reference": results[-1][2],
+    }
+    
+
 
 if __name__ == "__main__":
     # run_european_call()
     # run_barrier_call()
-    run_power_cap()
+    # run_power_cap()
+    run_power_cap_jump_model()

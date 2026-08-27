@@ -5,6 +5,7 @@ import numpy as np
 from src.models import (
     simulate_gbm_em_paths,
     simulate_mean_reverting_log_price_paths,
+    simulate_mean_reverting_jump_price_paths
 )
 
 from src.payoffs import (
@@ -55,16 +56,33 @@ def mc_power_cap(
     volume,
     delivery_indices,
     seasonal_mean,
+    jump_intensity=None,
+    jump_scale=None,
+    jump_reversion=None
 ):
-    S_paths = simulate_mean_reverting_log_price_paths(
-        N=N,
-        X0=X0,
-        kappa=kappa,
-        sigma=sigma,
-        T=T,
-        M=M,
-        seasonal_mean=seasonal_mean,
-    )
+    if jump_intensity is None:
+        S_paths = simulate_mean_reverting_log_price_paths(
+            N=N,
+            X0=X0,
+            kappa=kappa,
+            sigma=sigma,
+            T=T,
+            M=M,
+            seasonal_mean=seasonal_mean,
+        )
+    else:
+        S_paths = simulate_mean_reverting_jump_price_paths(
+            N=N,
+            X0=X0,
+            kappa=kappa,
+            sigma=sigma,
+            T=T,
+            M=M,
+            seasonal_mean=seasonal_mean,
+            jump_intensity=jump_intensity,
+            jump_scale=jump_scale,
+            jump_reversion=jump_reversion
+        )
 
     payoffs = power_cap_payoff(
         S_paths=S_paths,
