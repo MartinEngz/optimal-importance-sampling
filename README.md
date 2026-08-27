@@ -6,7 +6,14 @@ The project builds on an EPFL **MATH-414 Stochastic Simulation** assignment, whe
 
 ## Energy-market motivation
 
-Electricity prices have several features that make standard equity-style models inadequate:
+<p align="center">
+    <img src="figures/power_cap/crude_mc/power_jump_paths.png" width="800">
+</p>
+<p align="center">
+  <em>Figure 1: Mean-reverting electricity price paths with temporary price spikes.</em>
+</p>
+
+Electricity prices have several features that make standard equity-style models (standard geometric Brownian motion) inadequate:
 
 - **Mean reversion:** prices tend to move back toward seasonal or fundamental levels after temporary deviations.
 - **Seasonality:** demand, weather, renewable generation, and system conditions vary systematically over time.
