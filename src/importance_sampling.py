@@ -372,23 +372,6 @@ def evaluate_power_cap_is_theta(
             dW=dW,
             jump_increments=jump_increments
         )
-    dt = T / M
-
-    X_paths = np.empty((N, M + 1))
-    X_paths[:, 0] = X0
-
-    S_paths = np.empty_like(X_paths)
-    S_paths[:, 0] = np.exp(X0)
-
-    for m in range(M):
-        t_m = m * dt
-        X_curr = X_paths[:, m]
-
-        X_paths[:, m + 1] = (
-            X_curr + ( kappa * (seasonal_mean(t_m) - X_curr) + sigma * theta ) * dt + sigma * dW[:, m]
-        )
-
-        S_paths[:, m + 1] = np.exp(X_paths[:, m + 1])
 
     payoffs = power_cap_payoff(
         S_paths=S_paths,
@@ -442,8 +425,7 @@ def adaptive_is_theta_power_cap(
         random_seed=42,
         jump_intensity=None,
         jump_scale=None,
-        jump_reversion=None,
-        jump_increments=None,
+        jump_reversion=None
 ):
     """
     Adaptive importance sampling for a cap-style power derivative.
@@ -467,7 +449,21 @@ def adaptive_is_theta_power_cap(
         size=(N_bar, M)
     )
 
-    
+    jump_counts = rng.poisson(
+        jump_intensity * dt,
+        size=(N_bar, M)
+    )
+
+    jump_increments = np.zeros(
+        (N_bar, M)
+    )
+
+    mask = jump_counts > 0
+
+    jump_increments[mask] = rng.gamma(
+        shape=jump_counts[mask],
+        scale=jump_scale
+    )
 
     for iteration in range(1, max_iter + 1):
         N = dW.shape[0]
@@ -495,6 +491,10 @@ def adaptive_is_theta_power_cap(
                 volume=volume,
                 delivery_indices=delivery_indices,
                 seasonal_mean=seasonal_mean,
+                jump_increments=jump_increments,
+                jump_intensity=jump_intensity,
+                jump_scale=jump_scale,
+                jump_reversion=jump_reversion
             )
 
             coarse_objective.append(
@@ -531,6 +531,10 @@ def adaptive_is_theta_power_cap(
                 volume=volume,
                 delivery_indices=delivery_indices,
                 seasonal_mean=seasonal_mean,
+                jump_increments=jump_increments,
+                jump_intensity=jump_intensity,
+                jump_scale=jump_scale,
+                jump_reversion=jump_reversion
             )
 
             refined_objective.append(result["second_moment"])
@@ -565,13 +569,33 @@ def adaptive_is_theta_power_cap(
         if iteration < max_iter:            
             N_new = int(np.ceil(gamma*N))
 
-            extra = rng.normal(
+            n_extra = N_new - N
+
+            extra_dW = rng.normal(
                 loc=0.0,
                 scale=np.sqrt(dt),
-                size=(N_new - N, M)
+                size=(n_extra, M)
             )
 
-            dW = np.vstack((dW, extra))
+            extra_counts = rng.poisson(
+                jump_intensity * dt,
+                size=(n_extra, M),
+            )
+
+            extra_jumps = np.zeros(
+                (n_extra, M)
+            )
+
+            mask = extra_counts > 0
+
+            extra_jumps[mask] = rng.gamma(
+                shape=extra_counts[mask],
+                scale=jump_scale,
+            )
+
+            dW = np.vstack((dW, extra_dW))
+
+            jump_increments = np.vstack((jump_increments, extra_jumps))
             
 
     # Final independent simulation at selected optimal theta
@@ -579,6 +603,22 @@ def adaptive_is_theta_power_cap(
         loc=0.0,
         scale=np.sqrt(dt),
         size=(N,M),
+    )
+
+    jump_counts_final = rng.poisson(
+            jump_intensity * dt,
+            size=(N, M)
+        )
+    
+    jump_increments_final = np.zeros(
+        (N, M)
+    )
+
+    mask_final = jump_counts_final > 0
+
+    jump_increments_final[mask_final] = rng.gamma(
+        shape=jump_counts_final[mask_final],
+        scale=jump_scale
     )
 
     final_result = evaluate_power_cap_is_theta(
@@ -594,6 +634,10 @@ def adaptive_is_theta_power_cap(
         volume=volume,
         delivery_indices=delivery_indices,
         seasonal_mean=seasonal_mean,
+        jump_increments=jump_increments_final,
+        jump_intensity=jump_intensity,
+        jump_scale=jump_scale,
+        jump_reversion=jump_reversion
     )
 
     return {

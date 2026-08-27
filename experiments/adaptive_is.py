@@ -7,6 +7,7 @@ from experiments.config import (
     ADAPTIVE_IS,
     POWER_CAP,
     POWER_CAP_ADAPTIVE_IS,
+    POWER_CAP_JUMP
 )
 from src.importance_sampling import (
     adaptive_is_rtilde,
@@ -141,6 +142,7 @@ def run_european_call(std_reference=None):
 def run_power_cap(std_reference=None):
     cfg = POWER_CAP
     adaptive_cfg = POWER_CAP_ADAPTIVE_IS
+    jump_model_cfg = POWER_CAP_JUMP
 
     X0 = np.log(cfg["S0"])
 
@@ -165,6 +167,7 @@ def run_power_cap(std_reference=None):
         delivery_indices=delivery_indices,
         seasonal_mean=seasonal_mean,
         **adaptive_cfg,
+        **jump_model_cfg
     )
 
     print("\n--- Adaptive IS: Power Cap ---")
@@ -215,22 +218,29 @@ def run_power_cap(std_reference=None):
 
 if __name__ == "__main__":
     # run_european_call()
-    run_power_cap(std_reference=0.001252)
+    # run_power_cap(std_reference=0.001252) #OBS: mc std reference without jumps: 0.001252
 
-# Iteration  1 | N=  1,000 | theta_opt=11.8000 | J(theta)=1.212915e-09
-# Iteration  2 | N=  2,000 | theta_opt=11.6750 | J(theta)=1.171739e-09
-# Iteration  3 | N=  4,000 | theta_opt=15.2250 | J(theta)=1.661158e-09
-# Iteration  4 | N=  8,000 | theta_opt=14.9000 | J(theta)=1.550510e-09
-# Iteration  5 | N= 16,000 | theta_opt=11.3500 | J(theta)=2.001198e-09
-# Iteration  6 | N= 32,000 | theta_opt=11.7500 | J(theta)=1.768160e-09
-# Iteration  7 | N= 64,000 | theta_opt=11.6000 | J(theta)=1.597664e-09
-# Iteration  8 | N=128,000 | theta_opt=13.1750 | J(theta)=2.009877e-09
-# Iteration  9 | N=256,000 | theta_opt=11.0500 | J(theta)=1.947082e-09
-# Iteration 10 | N=512,000 | theta_opt=10.9750 | J(theta)=1.987006e-09
+    
+    # Results for adaptive IS on mean-reverting only model
 
-# --- Adaptive IS: Power Cap ---
-# Optimal theta:        10.9750
-# Price estimate:        1.53852528e-05
-# Weighted payoff std:  4.08309528e-05
-# Positive paths:       417,631(40.78%)
-# Variance reduction: 940.22  
+    # Iteration  1 | N=  1,000 | theta_opt=11.8000 | J(theta)=1.212915e-09
+    # Iteration  2 | N=  2,000 | theta_opt=11.6750 | J(theta)=1.171739e-09
+    # Iteration  3 | N=  4,000 | theta_opt=15.2250 | J(theta)=1.661158e-09
+    # Iteration  4 | N=  8,000 | theta_opt=14.9000 | J(theta)=1.550510e-09
+    # Iteration  5 | N= 16,000 | theta_opt=11.3500 | J(theta)=2.001198e-09
+    # Iteration  6 | N= 32,000 | theta_opt=11.7500 | J(theta)=1.768160e-09
+    # Iteration  7 | N= 64,000 | theta_opt=11.6000 | J(theta)=1.597664e-09
+    # Iteration  8 | N=128,000 | theta_opt=13.1750 | J(theta)=2.009877e-09
+    # Iteration  9 | N=256,000 | theta_opt=11.0500 | J(theta)=1.947082e-09
+    # Iteration 10 | N=512,000 | theta_opt=10.9750 | J(theta)=1.987006e-09
+
+    # --- Adaptive IS: Power Cap ---
+    # Optimal theta:        10.9750
+    # Price estimate:        1.53852528e-05
+    # Weighted payoff std:  4.08309528e-05
+    # Positive paths:       417,631(40.78%)
+    # Variance reduction: 940.22  
+
+    run_power_cap(std_reference=0.138714) # OBS: mc std reference with jumps: 0.138714
+    
+    
