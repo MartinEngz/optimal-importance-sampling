@@ -75,7 +75,7 @@ $$
 Typical results are:
 
 - positive-payoff frequency under IS: **~49–50%**;
-- cap-value estimate: **~$1.54\times10^{-5}$**;
+- cap-value estimate: $~1.54 \times 10^{-5}$;
 - variance reduction: **several hundred times** relative to crude Monte Carlo.
 
 So the Brownian tilt turns an event occurring roughly once every 2,000 crude paths into one occurring in about half of the tilted paths.
@@ -122,8 +122,8 @@ The main conclusion is therefore:
 
 | Price model | Estimator | Positive payoff paths | Price estimate | Main result |
 |---|---:|---:|---:|---|
-| Mean-reverting diffusion | Crude Monte Carlo | ~0.05% | ~$1.5\times10^{-5}$ | Strong rare-event problem |
-| Mean-reverting diffusion | Adaptive Brownian IS | ~49–50% | ~$1.54\times10^{-5}$ | Several-hundred-fold variance reduction |
+| Mean-reverting diffusion | Crude Monte Carlo | ~0.05% | ~1.5e-5 | Strong rare-event problem |
+| Mean-reverting diffusion | Adaptive Brownian IS | ~49–50% | ~1.54e-5 | Several-hundred-fold variance reduction |
 | Mean reversion + spikes | Crude Monte Carlo | ~11.4% | ~0.0237 | Spikes materially increase high-price exposure |
 | Mean reversion + spikes | Brownian-only IS | unstable for aggressive tilts | unreliable at large $\theta$ | Jump-aware tilting is needed |
 
